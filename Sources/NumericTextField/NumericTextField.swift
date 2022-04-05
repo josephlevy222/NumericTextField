@@ -3,6 +3,15 @@ import SwiftUI
 
 /// A `TextField` replacement that limits user input to numbers.
 public struct NumericTextField: View {
+    public init(_ title: LocalizedStringKey, numericText: Binding<String>, style: NumericStringStyle = NumericStringStyle.defaultStyle, onEditingChanged: @escaping (Bool) -> Void = { _ in }, onCommit: @escaping () -> Void = { }, reformatter: @escaping (String) -> String = reformat) {
+        self._numericText = numericText
+        self.title = title
+        self.style = style
+        self.onEditingChanged = onEditingChanged
+        self.onCommit = onCommit
+        self.reformatter = reformatter
+    }
+    
     
     public let title: LocalizedStringKey
     /// This is what consumers of the text field will access
@@ -20,14 +29,16 @@ public struct NumericTextField: View {
     ///   - titleKey: The key for the localized title of the text field,
     ///     describing its purpose.
     ///   - numericText: The number to be displayed and edited.
-    ///   - style: The style tells
+    ///   - style: NumericTextStyle - The style init has
+    ///       (decimalSeparator: Bool = true, negatives: Bool = true , exponent: Bool = true, range: ClosedRange<Double>? = nil
     ///     - isDecimalAllowed: Should the user be allowed to enter a decimal number, or an integer
-    ///     - isExponentAllowed: Should the user be allowed to enter a e or E exponent character
     ///     - isMinusAllowed:Should user be allow to enter negative numbers
-    ///   - reformatter: String to String func NumberFormatter to use on getting focus or losing focus used by on EditingChanged now reformat
+    ///     - isExponentAllowed: Should the user be allowed to enter a e or E exponent character
+    ///     - range - allowed range
     ///   - onEditingChanged: An action thats called when the user begins editing `text` and after the user finishes editing `text`.
     ///     The closure receives a Boolean indicating whether the text field is currently being edited.
     ///   - onCommit: An action to perform when the user performs an action (for example, when the user hits the return key) while the text field has focus.
+    ///   - reformatter: String to String func NumberFormatter to use on getting focus or losing focus used by on EditingChanged default reformat
     /**/
     var range: ClosedRange<Double> {
         if let ld = style.range?.lowerBound {
@@ -62,7 +73,7 @@ public struct NumericTextField: View {
     }
 }
 
-func reformat(_ stringValue: String) -> String {
+public func reformat(_ stringValue: String) -> String {
     let value = NumberFormatter().number(from: stringValue)
     if let v = value {
         let compare = v.compare(NSNumber(value: 0.0))
@@ -131,15 +142,12 @@ struct NumericTextField_Previews: PreviewProvider {
         }
     }
 }
-
+/*
 extension NumericTextField {
     ///  Same as built-in init except title: is _
     public init(_ titleKey: LocalizedStringKey, numericText: Binding<String>, style: NumericStringStyle = NumericStringStyle(),
-        //formatter: NumberFormatter =  {
-        //    let formatter = NumberFormatter()
-        //    formatter.numberStyle = .decimal
-        //    return formatter}() }
-        //self.formatter = formatter
+        reformatter: @escaping (String) -> String = reformat,
+
         onEditingChanged: @escaping (Bool) -> Void = { _ in  },
         onCommit: @escaping () -> Void = {}) {
         self.title = titleKey
@@ -150,4 +158,5 @@ extension NumericTextField {
     }
 }
 
+*/
 
