@@ -1,3 +1,3 @@
 # NumericTextField
 
-A description of this package.
+A TextField for SwiftUI that allows only numbers according to NumericStringStyle

@@ -129,9 +129,7 @@ struct NumericTextField_Previews: PreviewProvider {
                     .padding()
                 
                 Text(int + " is the Int), and ")}
-            
-            
-            
+         
             HStack {
                 NumericTextField( "Double", numericText: $double)
                     .frame(width: 200)
@@ -142,21 +140,3 @@ struct NumericTextField_Previews: PreviewProvider {
         }
     }
 }
-/*
-extension NumericTextField {
-    ///  Same as built-in init except title: is _
-    public init(_ titleKey: LocalizedStringKey, numericText: Binding<String>, style: NumericStringStyle = NumericStringStyle(),
-        reformatter: @escaping (String) -> String = reformat,
-
-        onEditingChanged: @escaping (Bool) -> Void = { _ in  },
-        onCommit: @escaping () -> Void = {}) {
-        self.title = titleKey
-        self._numericText = numericText
-        self.style = style
-        self.onCommit = onCommit
-        self.onEditingChanged = onEditingChanged
-    }
-}
-
-*/
-
