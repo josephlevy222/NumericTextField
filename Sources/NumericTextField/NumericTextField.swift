@@ -12,7 +12,7 @@ public struct NumericTextField: View {
     /// onSubmit since iOS 15 can be used
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
-
+    public var reformatter: (_ stringValue: String) -> String = reformat
   
     /// Creates a text field with a text label generated from a localized title string.
     ///
@@ -20,10 +20,11 @@ public struct NumericTextField: View {
     ///   - titleKey: The key for the localized title of the text field,
     ///     describing its purpose.
     ///   - numericText: The number to be displayed and edited.
-    ///   - isDecimalAllowed: Should the user be allowed to enter a decimal number, or an integer
-    ///   - isExponentAllowed: Should the user be allowed to enter a e or E exponent character
-    ///   - isMinusAllowed:Should user be allow to enter negative numbers
-    ///   - //formatter: NumberFormatter to use on getting focus or losing focus used by on EditingChanged now reformat
+    ///   - style: The style tells
+    ///     - isDecimalAllowed: Should the user be allowed to enter a decimal number, or an integer
+    ///     - isExponentAllowed: Should the user be allowed to enter a e or E exponent character
+    ///     - isMinusAllowed:Should user be allow to enter negative numbers
+    ///   - reformatter: String to String func NumberFormatter to use on getting focus or losing focus used by on EditingChanged now reformat
     ///   - onEditingChanged: An action thats called when the user begins editing `text` and after the user finishes editing `text`.
     ///     The closure receives a Boolean indicating whether the text field is currently being edited.
     ///   - onCommit: An action to perform when the user performs an action (for example, when the user hits the return key) while the text field has focus.
@@ -47,21 +48,21 @@ public struct NumericTextField: View {
         TextField(title, text: $numericText,//.string
             onEditingChanged: { exited in
                 if !exited {
-                    numericText = reformat(numericText)
+                    numericText = reformatter(numericText)
                 }
                 onEditingChanged(exited)
             },
             onCommit: {
-                  numericText = reformat(numericText)//see bounds comment above
+                  numericText = reformatter(numericText)//see bounds comment above
                 onCommit()
         })
             .numericText( number: $numericText, style: style )
-            .onAppear { numericText = reformat(numericText)}
+            .onAppear { numericText = reformatter(numericText)}
             .modifier(KeyboardModifier(isDecimalAllowed: style.decimalSeparator))
     }
 }
 
-public func reformat(_ stringValue: String) -> String {
+func reformat(_ stringValue: String) -> String {
     let value = NumberFormatter().number(from: stringValue)
     if let v = value {
         let compare = v.compare(NSNumber(value: 0.0))
