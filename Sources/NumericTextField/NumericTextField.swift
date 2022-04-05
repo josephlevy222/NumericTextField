@@ -3,6 +3,7 @@ import SwiftUI
 
 /// A `TextField` replacement that limits user input to numbers.
 public struct NumericTextField: View {
+    
     public let title: LocalizedStringKey
     /// This is what consumers of the text field will access
     @Binding public var numericText: String
@@ -27,7 +28,7 @@ public struct NumericTextField: View {
     ///     The closure receives a Boolean indicating whether the text field is currently being edited.
     ///   - onCommit: An action to perform when the user performs an action (for example, when the user hits the return key) while the text field has focus.
     /**/
-    public var range: ClosedRange<Double> {
+    var range: ClosedRange<Double> {
         if let ld = style.range?.lowerBound {
             if let ud = style.range?.upperBound {
                 return (ld...ud)
