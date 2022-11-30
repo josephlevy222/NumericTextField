@@ -39,7 +39,7 @@ extension NSNumber {
 
 
 public struct NumericStringStyle {
-    static public var defaultStyle = NumericStringStyle()
+    static public var defaultStyle = NumericStringStyle() /// decimal point, negatives, and exponent allowed with infinite range
     static public var intStyle = NumericStringStyle(decimalSeparator: false, negatives: true, exponent: false, range: nil)
     static public var positiveStyle = NumericStringStyle(decimalSeparator: true, negatives: false, exponent: true, range: nil)
     public var decimalSeparator: Bool

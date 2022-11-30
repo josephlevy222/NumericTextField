@@ -10,19 +10,20 @@ public struct NumericTextField: View {
         self.onEditingChanged = onEditingChanged
         self.onCommit = onCommit
         self.reformatter = reformatter
+        //self._text = StateObject(wrappedValue: NumericTextFieldObserver(numericText))
     }
-    
     
     public let title: LocalizedStringKey
     /// This is what consumers of the text field will access
     @Binding public var numericText: String
-    public var style: NumericStringStyle = NumericStringStyle.defaultStyle
+    //@StateObject private var text: NumericTextFieldObserver
+    public var style: NumericStringStyle = .defaultStyle
     
     /// onSubmit since iOS 15 can be used
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
     public var reformatter: (_ stringValue: String) -> String = reformat
-  
+    
     /// Creates a text field with a text label generated from a localized title string.
     ///
     /// - Parameters:
@@ -40,6 +41,7 @@ public struct NumericTextField: View {
     ///   - onCommit: An action to perform when the user performs an action (for example, when the user hits the return key) while the text field has focus.
     ///   - reformatter: String to String func NumberFormatter to use on getting focus or losing focus used by on EditingChanged default reformat
     /**/
+    // Computed value of range removing optionals
     var range: ClosedRange<Double> {
         if let ld = style.range?.lowerBound {
             if let ud = style.range?.upperBound {
@@ -56,20 +58,20 @@ public struct NumericTextField: View {
     }
             
     public var body: some View {
-        TextField(title, text: $numericText,//.string
-            onEditingChanged: { exited in
+        TextField(title, text: $numericText,
+            onEditingChanged: { exited in 
                 if !exited {
                     numericText = reformatter(numericText)
                 }
                 onEditingChanged(exited)
             },
-            onCommit: {
+            onCommit: { // fires on return (enter) hit
                   numericText = reformatter(numericText)//see bounds comment above
                 onCommit()
         })
             .numericText( number: $numericText, style: style )
             .onAppear { numericText = reformatter(numericText)}
-            .modifier(KeyboardModifier(isDecimalAllowed: style.decimalSeparator))
+            //.modifier(KeyboardModifier(isDecimalAllowed: style.decimalSeparator))
     }
 }
 
@@ -108,7 +110,7 @@ private struct KeyboardModifier: ViewModifier {
     func body(content: Content) -> some View {
         #if os(iOS)
         return content
-            .keyboardType(isDecimalAllowed ? .decimalPad : .numberPad)
+            .keyboardType(isDecimalAllowed ? .numbersAndPunctuation : UIKeyboardType.default)
         #else
         return content
         #endif
@@ -125,7 +127,7 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField("Int", numericText: $int, style: NumericStringStyle(decimalSeparator: false))
                     .frame(width: 200)
-                    .border(Color.black, width: 1)
+                    .border(.foreground, width: 1)
                     .padding()
                 
                 Text(int + " is the Int), and ")}
@@ -133,10 +135,11 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField( "Double", numericText: $double)
                     .frame(width: 200)
-                    .border(Color.black, width: 1)
+                    .border(.foreground, width: 1)
                     .padding()
                 
                 Text( double + " is the double")}
         }
     }
 }
+
