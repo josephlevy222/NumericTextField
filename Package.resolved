@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephlevy222/EditableText",
       "state" : {
-        "branch" : "main",
-        "revision" : "a8cf17a49913aa47788dda2be49dff4cc60f6db9"
+        "branch" : "test",
+        "revision" : "7b0434208046cb762e04f1c5142c0170bf7797ff"
       }
     }
   ],
