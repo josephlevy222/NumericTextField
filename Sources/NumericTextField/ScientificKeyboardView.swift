@@ -3,136 +3,128 @@
 #if os(iOS)
 import SwiftUI
 
-// MARK: - Key Model
+// MARK: - Key model
 
-enum ScientificKeyType {
-    case digit, special, action, done
-}
+private enum KeyType { case digit, special, action, done }
 
-struct ScientificKeyDefinition: Identifiable {
+private struct KeyDef: Identifiable {
     let id = UUID()
     let label: String
     let value: String
-    let type: ScientificKeyType
+    let type: KeyType
     var wide: Bool = false
 }
 
-private let keyLayout: [[ScientificKeyDefinition]] = [
+private let layout: [[KeyDef]] = [
     [
-        ScientificKeyDefinition(label: "7",    value: "7",         type: .digit),
-        ScientificKeyDefinition(label: "8",    value: "8",         type: .digit),
-        ScientificKeyDefinition(label: "9",    value: "9",         type: .digit),
-        ScientificKeyDefinition(label: "⌫",   value: "backspace", type: .action),
+        KeyDef(label: "7",    value: "7",         type: .digit),
+        KeyDef(label: "8",    value: "8",         type: .digit),
+        KeyDef(label: "9",    value: "9",         type: .digit),
+        KeyDef(label: "⌫",   value: "backspace", type: .action),
     ],
     [
-        ScientificKeyDefinition(label: "4",    value: "4",         type: .digit),
-        ScientificKeyDefinition(label: "5",    value: "5",         type: .digit),
-        ScientificKeyDefinition(label: "6",    value: "6",         type: .digit),
-        ScientificKeyDefinition(label: "−",   value: "-",         type: .special),
+        KeyDef(label: "4",    value: "4",         type: .digit),
+        KeyDef(label: "5",    value: "5",         type: .digit),
+        KeyDef(label: "6",    value: "6",         type: .digit),
+        KeyDef(label: "−",   value: "-",         type: .special),
     ],
     [
-        ScientificKeyDefinition(label: "1",    value: "1",         type: .digit),
-        ScientificKeyDefinition(label: "2",    value: "2",         type: .digit),
-        ScientificKeyDefinition(label: "3",    value: "3",         type: .digit),
-        ScientificKeyDefinition(label: "E",    value: "E",         type: .special),
+        KeyDef(label: "1",    value: "1",         type: .digit),
+        KeyDef(label: "2",    value: "2",         type: .digit),
+        KeyDef(label: "3",    value: "3",         type: .digit),
+        KeyDef(label: "E",    value: "E",         type: .special),
     ],
     [
-        ScientificKeyDefinition(label: "0",    value: "0",         type: .digit,  wide: true),
-        ScientificKeyDefinition(label: ".",    value: ".",         type: .special),
-        ScientificKeyDefinition(label: "Done", value: "done",      type: .done),
+        KeyDef(label: "0",    value: "0",         type: .digit, wide: true),
+        KeyDef(label: ".",    value: ".",         type: .special),
+        KeyDef(label: "Done", value: "done",      type: .done),
     ],
 ]
 
-// MARK: - Individual Key View
+// MARK: - Key view
 
-struct ScientificKey: View {
-    let key: ScientificKeyDefinition
-    let isDisabled: Bool
+private struct NumericKey: View {
+    let key: KeyDef
+    let disabled: Bool
     let onTap: () -> Void
 
-    @State private var isPressed = false
+    @State private var pressed = false
 
     var body: some View {
         Button(action: {}) {
             ZStack {
-                keyBackground
-                keyLabel
+                background
+                label
             }
             .frame(height: 54)
-            .scaleEffect(isPressed ? 0.94 : 1.0)
-            .animation(.easeOut(duration: 0.08), value: isPressed)
-            .opacity(isDisabled ? 0.3 : 1.0)
+            .scaleEffect(pressed ? 0.94 : 1.0)
+            .opacity(disabled ? 0.3 : 1.0)
+            .animation(.easeOut(duration: 0.08), value: pressed)
         }
         .buttonStyle(.plain)
-        .disabled(isDisabled)
+        .disabled(disabled)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    if !isPressed && !isDisabled {
-                        isPressed = true
+                    if !pressed && !disabled {
+                        pressed = true
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     }
                 }
                 .onEnded { _ in
-                    isPressed = false
-                    if !isDisabled { onTap() }
+                    pressed = false
+                    if !disabled { onTap() }
                 }
         )
     }
 
     @ViewBuilder
-    private var keyBackground: some View {
+    private var background: some View {
+        let r = RoundedRectangle(cornerRadius: 10, style: .continuous)
         switch key.type {
         case .digit:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(white: isPressed ? 0.28 : 0.22))
-                .shadow(color: .black.opacity(0.4), radius: 0, x: 0, y: isPressed ? 1 : 3)
+            r.fill(Color(white: pressed ? 0.28 : 0.22))
+             .shadow(color: .black.opacity(0.4), radius: 0, x: 0, y: pressed ? 1 : 3)
         case .special:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.12, green: 0.15, blue: 0.28).opacity(isPressed ? 0.9 : 1))
-                .shadow(color: .black.opacity(0.5), radius: 0, x: 0, y: isPressed ? 1 : 3)
+            r.fill(Color(red: 0.12, green: 0.15, blue: 0.28).opacity(pressed ? 0.9 : 1))
+             .shadow(color: .black.opacity(0.5), radius: 0, x: 0, y: pressed ? 1 : 3)
         case .action:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(white: isPressed ? 0.22 : 0.17))
-                .shadow(color: .black.opacity(0.4), radius: 0, x: 0, y: isPressed ? 1 : 3)
+            r.fill(Color(white: pressed ? 0.22 : 0.17))
+             .shadow(color: .black.opacity(0.4), radius: 0, x: 0, y: pressed ? 1 : 3)
         case .done:
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.18, green: 0.44, blue: 0.96),
-                                 Color(red: 0.12, green: 0.32, blue: 0.80)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: Color(red: 0.1, green: 0.22, blue: 0.6).opacity(0.6),
-                        radius: 4, x: 0, y: isPressed ? 1 : 3)
+            r.fill(LinearGradient(
+                colors: [Color(red: 0.18, green: 0.44, blue: 0.96),
+                         Color(red: 0.12, green: 0.32, blue: 0.80)],
+                startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .shadow(color: Color(red: 0.1, green: 0.22, blue: 0.6).opacity(0.6),
+                    radius: 4, x: 0, y: pressed ? 1 : 3)
         }
     }
 
     @ViewBuilder
-    private var keyLabel: some View {
-        VStack(spacing: 1) {
-            if key.value == "E" {
+    private var label: some View {
+        if key.value == "E" {
+            VStack(spacing: 1) {
                 Text("E")
                     .font(.system(size: 20, weight: .regular, design: .monospaced))
                     .foregroundStyle(Color(red: 0.48, green: 0.72, blue: 0.98))
                 Text("×10ⁿ")
-                    .font(.system(size: 8, weight: .regular))
+                    .font(.system(size: 8))
                     .foregroundStyle(Color(red: 0.4, green: 0.55, blue: 0.75))
-            } else {
-                Text(key.label)
-                    .font(labelFont)
-                    .foregroundStyle(labelColor)
             }
+        } else {
+            Text(key.label)
+                .font(labelFont)
+                .foregroundStyle(labelColor)
         }
     }
 
     private var labelFont: Font {
         switch key.type {
-        case .digit:   return .system(size: 20, weight: .regular, design: .monospaced)
-        case .special: return .system(size: 20, weight: .regular, design: .monospaced)
-        case .action:  return .system(size: 18, weight: .regular)
-        case .done:    return .system(size: 15, weight: .medium)
+        case .digit, .special: return .system(size: 20, weight: .regular, design: .monospaced)
+        case .action:          return .system(size: 18, weight: .regular)
+        case .done:            return .system(size: 15, weight: .medium)
         }
     }
 
@@ -146,7 +138,7 @@ struct ScientificKey: View {
     }
 }
 
-// MARK: - Keyboard View
+// MARK: - Keyboard view
 
 struct ScientificKeyboardView: View {
     @Binding var text: String
@@ -155,21 +147,19 @@ struct ScientificKeyboardView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Divider()
-                .overlay(Color(white: 0.18))
+            Divider().overlay(Color(white: 0.18))
 
             VStack(spacing: 10) {
-                ForEach(0..<keyLayout.count, id: \.self) { rowIndex in
+                ForEach(0..<layout.count, id: \.self) { row in
                     HStack(spacing: 10) {
-                        ForEach(keyLayout[rowIndex]) { key in
-                            ScientificKey(
-                                key: key,
-                                isDisabled: isDisabled(key)
-                            ) {
+                        ForEach(layout[row]) { key in
+                            NumericKey(key: key, disabled: isDisabled(key)) {
                                 handleKey(key)
                             }
-                            .frame(maxWidth: key.wide ? .infinity : nil)
-                            .if(!key.wide) { $0.frame(maxWidth: .infinity) }
+                            .frame(maxWidth: .infinity)
+                            // Wide key gets 2x flex weight via GeometryReader trick —
+                            // simpler: just let all keys be equal width and make 0 span two
+                            .if(key.wide) { $0.frame(minWidth: 0) }
                         }
                     }
                 }
@@ -185,9 +175,7 @@ struct ScientificKeyboardView: View {
         .background(Color(red: 0.11, green: 0.13, blue: 0.19))
     }
 
-    // MARK: - Key handling — delegate all validation to numericValue(style:)
-
-    private func handleKey(_ key: ScientificKeyDefinition) {
+    private func handleKey(_ key: KeyDef) {
         if key.value == "done" {
             onDone(text.isEmpty ? "0" : text)
             return
@@ -198,7 +186,7 @@ struct ScientificKeyboardView: View {
         text = candidate.numericValue(style: style).uppercased()
     }
 
-    private func isDisabled(_ key: ScientificKeyDefinition) -> Bool {
+    private func isDisabled(_ key: KeyDef) -> Bool {
         switch key.value {
         case ".": return !style.decimalSeparator
         case "E": return !style.exponent
@@ -208,8 +196,6 @@ struct ScientificKeyboardView: View {
     }
 }
 
-// MARK: - Conditional modifier helper
-
 extension View {
     @ViewBuilder
     fileprivate func `if`<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
@@ -218,7 +204,6 @@ extension View {
 }
 
 // MARK: - Preview
-
 #Preview {
     ScientificKeyboardView(text: .constant("3.14E-9"), onDone: { _ in })
 }
