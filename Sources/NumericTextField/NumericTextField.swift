@@ -29,6 +29,7 @@ public struct NumericTextField: View {
 
     public let title: LocalizedStringKey
     @Binding public var numericText: String
+	public var isFocused: Binding<Bool> = .constant(false)
     public var style: NumericStringStyle = .defaultStyle
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
@@ -84,6 +85,7 @@ public struct NumericTextField: View {
         NumericFieldiOS(
             title,
             text: $numericText,
+			isFocused: isFocused,
             style: style,
             font: _font,
             textAlignment: _textAlignment,
@@ -179,6 +181,7 @@ struct NumericTextField_Previews: PreviewProvider {
 private struct NumericFieldiOS: View {
     let label: LocalizedStringKey
     @Binding var text: String
+	@Binding var isFocused: Bool
     var style: NumericStringStyle
     var font: UIFont?
     var textAlignment: NSTextAlignment
@@ -189,6 +192,7 @@ private struct NumericFieldiOS: View {
 
     init(_ label: LocalizedStringKey,
          text: Binding<String>,
+		 isFocused: Binding<Bool>,
          style: NumericStringStyle = .defaultStyle,
          font: UIFont? = nil,
          textAlignment: NSTextAlignment = .natural,
@@ -196,6 +200,7 @@ private struct NumericFieldiOS: View {
          onFocusChange: @escaping (Bool) -> Void = { _ in }) {
         self.label = label
         self._text = text
+		self._isFocused = isFocused
         self.style = style
         self.font = font
         self.textAlignment = textAlignment
@@ -222,6 +227,7 @@ private struct NumericFieldiOS: View {
 
             NumericUITextField(
                 text: $text,
+				isFocused: $isFocused,
                 font: resolvedFont,
                 style: style,
                 textAlignment: textAlignment,
@@ -341,6 +347,7 @@ private class BlinkingCursorView: UIView {
 
 private class NumericUITextFieldView: UITextField {
     var onLayout: (() -> Void)?
+	
     override func layoutSubviews() {
         super.layoutSubviews()
         onLayout?()
@@ -351,6 +358,7 @@ private class NumericUITextFieldView: UITextField {
 
 private struct NumericUITextField: UIViewRepresentable {
     @Binding var text: String
+	@Binding var isFocused: Bool
     var font: UIFont
     var style: NumericStringStyle
     var textAlignment: NSTextAlignment
@@ -437,6 +445,11 @@ private struct NumericUITextField: UIViewRepresentable {
 
     func updateUIView(_ field: NumericUITextFieldView, context: Context) {
         let coord = context.coordinator
+		if isFocused && !field.isFirstResponder {
+			field.becomeFirstResponder()
+		} else if !isFocused && field.isFirstResponder {
+			field.resignFirstResponder()
+		}
         if field.text != text {
             field.text = text
             coord.bridge.text = text
@@ -467,17 +480,19 @@ private struct NumericUITextField: UIViewRepresentable {
             self.bridge = NumericTextBridge(parent.text, style: parent.style)
         }
 
-        func textFieldDidBeginEditing(_ textField: UITextField) {
-            cursorView?.reposition(in: textField)
-            cursorView?.startBlinking()
-            parent.onFocusChange(true)
-        }
-
-        func textFieldDidEndEditing(_ textField: UITextField) {
-            cursorView?.stopBlinking()
-            parent.text = bridge.text
-            parent.onFocusChange(false)
-        }
+		func textFieldDidBeginEditing(_ textField: UITextField) {
+			parent.isFocused = true   // add this line
+			cursorView?.reposition(in: textField)
+			cursorView?.startBlinking()
+			parent.onFocusChange(true)
+		}
+		
+		func textFieldDidEndEditing(_ textField: UITextField) {
+			parent.isFocused = false  // add this line
+			cursorView?.stopBlinking()
+			parent.text = bridge.text
+			parent.onFocusChange(false)
+		}
 
         func textField(_ textField: UITextField,
                        shouldChangeCharactersIn range: NSRange,
