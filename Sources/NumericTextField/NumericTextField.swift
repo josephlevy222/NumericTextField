@@ -36,18 +36,38 @@ public struct NumericTextField: View {
     private var _font: UIFont? = nil
     private var _textAlignment: NSTextAlignment = .natural
 
-    // MARK: - Modifiers
+    // MARK: - Font modifiers
 
     /// Sets the font using a SwiftUI.Font — same syntax as .font() on any SwiftUI view.
     /// Uses UIFont(font:) from EditableText to convert SwiftUI.Font → UIFont.
     /// If not called, defaults to a monospaced system font scaled to the current Dynamic Type size.
-    public func font(_ swiftUIFont: SwiftUI.Font) -> NumericTextField {
+    public func font(_ font: SwiftUI.Font) -> NumericTextField {
         var copy = self
-        copy._font = UIFont(font: swiftUIFont)
+        copy._font = UIFont(font: font)
         return copy
     }
 
-    /// Sets the text alignment of the input field.
+    /// Sets the font using a UIFont directly.
+    public func font(_ font: UIFont) -> NumericTextField {
+        var copy = self
+        copy._font = font
+        return copy
+    }
+
+    // MARK: - Alignment modifiers
+
+    /// Sets the text alignment using SwiftUI's TextAlignment.
+    public func textAlignment(_ alignment: TextAlignment) -> NumericTextField {
+        var copy = self
+        copy._textAlignment = switch alignment {
+            case .leading:  .left
+            case .center:   .center
+            case .trailing: .right
+        }
+        return copy
+    }
+
+    /// Sets the text alignment using NSTextAlignment directly.
     public func textAlignment(_ alignment: NSTextAlignment) -> NumericTextField {
         var copy = self
         copy._textAlignment = alignment
@@ -127,7 +147,7 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField("Int", numericText: $int,
                                  style: NumericStringStyle(decimalSeparator: false))
-                    .textAlignment(.right)
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -136,7 +156,7 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField("Double", numericText: $double)
                     .font(.system(size: 20, weight: .light, design: .monospaced))
-                    .textAlignment(.right)
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -156,7 +176,7 @@ private struct NumericFieldiOS: View {
     let label: LocalizedStringKey
     @Binding var text: String
     var style: NumericStringStyle
-    var font: UIFont?                    // nil = use @ScaledMetric default
+    var font: UIFont?
     var textAlignment: NSTextAlignment
     var onDone: (String) -> Void
     var onFocusChange: (Bool) -> Void
@@ -179,7 +199,6 @@ private struct NumericFieldiOS: View {
         self.onFocusChange = onFocusChange
     }
 
-    // Use caller-supplied font or fall back to Dynamic Type scaled monospaced font
     private var resolvedFont: UIFont {
         font ?? .monospacedSystemFont(ofSize: scaledSize, weight: .regular)
     }
@@ -189,7 +208,6 @@ private struct NumericFieldiOS: View {
                                             : textAlignment == .center ? .center
                                             : .leading
         ZStack(alignment: placeholderAlignment) {
-            // Placeholder — visible only when empty, like a native TextField
             if text.isEmpty {
                 Text(label)
                     .font(.system(size: resolvedFont.pointSize))
@@ -245,7 +263,6 @@ private struct KeyboardHost: View {
 }
 
 // MARK: - Keyboard container view
-// Advertises height via intrinsicContentSize to avoid TUIKeyplane constraint conflicts.
 
 private class KeyboardContainerView: UIView {
     var preferredHeight: CGFloat = 260 {
@@ -259,6 +276,7 @@ private class KeyboardContainerView: UIView {
 // MARK: - Blinking cursor view
 
 private class BlinkingCursorView: UIView {
+
     func startBlinking() {
         layer.removeAllAnimations()
         alpha = 1
@@ -273,6 +291,55 @@ private class BlinkingCursorView: UIView {
     func stopBlinking() {
         layer.removeAllAnimations()
         alpha = 0
+    }
+
+    /// Repositions the cursor inside `field` so it sits exactly where
+    /// the next keystroke will appear, respecting alignment and current text.
+    func reposition(in field: UITextField) {
+        guard let font = field.font else { return }
+        let text = field.text ?? ""
+        let fieldWidth = field.bounds.width
+        let fieldHeight = field.bounds.height
+        guard fieldWidth > 0 else { return }    // bounds not yet set
+
+        let cursorHeight = font.lineHeight * 1.1
+        let cursorY = (fieldHeight - cursorHeight) / 2
+
+        let textWidth: CGFloat = text.isEmpty
+            ? 0
+            : (text as NSString).size(withAttributes: [.font: font]).width
+
+        let cursorX: CGFloat
+        switch field.textAlignment {
+        case .right:
+            // Empty: pin to right edge (where placeholder trailing edge is)
+            // With text: sit just after the text, which is right-aligned
+            cursorX = text.isEmpty
+                ? fieldWidth
+                : max(0, fieldWidth - textWidth)
+
+        case .center:
+            // Text is centered; cursor sits just right of the centered block
+            let textStart = (fieldWidth - textWidth) / 2
+            cursorX = text.isEmpty
+                ? fieldWidth / 2
+                : min(textStart + textWidth, fieldWidth)
+
+        default: // .left, .natural
+            cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
+        }
+
+        frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
+    }
+}
+
+// MARK: - UITextField subclass to catch layout changes
+
+private class NumericUITextFieldView: UITextField {
+    var onLayout: (() -> Void)?
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }
 
@@ -290,8 +357,8 @@ private struct NumericUITextField: UIViewRepresentable {
         Coordinator(self)
     }
 
-    func makeUIView(context: Context) -> UITextField {
-        let field = UITextField()
+    func makeUIView(context: Context) -> NumericUITextFieldView {
+        let field = NumericUITextFieldView()
         let coord = context.coordinator
 
         field.delegate = coord
@@ -302,21 +369,30 @@ private struct NumericUITextField: UIViewRepresentable {
         field.autocorrectionType = .no
         field.spellCheckingType = .no
 
-        // Blinking cursor as rightView — starts hidden
+        // Cursor as plain subview — positioned by reposition(in:)
         let cursor = BlinkingCursorView()
         cursor.backgroundColor = .systemBlue
-        cursor.frame = CGRect(x: 0, y: 0, width: 2, height: 24)
         cursor.layer.cornerRadius = 1
         cursor.alpha = 0
-        field.rightView = cursor
-        field.rightViewMode = .always
+        field.addSubview(cursor)
         coord.cursorView = cursor
+
+        // Reposition cursor whenever the field lays out (bounds become valid,
+        // rotation, Dynamic Type change, etc.)
+        field.onLayout = { [weak field, weak coord] in
+            guard let field, let coord, field.isFirstResponder else { return }
+            coord.cursorView?.reposition(in: field)
+        }
 
         // Bridge: filter all input through numericValue(style:)
         coord.bridge.onChange = { [weak field] newValue in
             let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
             field?.text = filtered
             coord.parent.text = filtered
+            // Reposition after each keystroke
+            if let field, field.isFirstResponder {
+                coord.cursorView?.reposition(in: field)
+            }
         }
 
         // Build and attach the custom keyboard
@@ -355,14 +431,23 @@ private struct NumericUITextField: UIViewRepresentable {
         return field
     }
 
-    func updateUIView(_ field: UITextField, context: Context) {
+    func updateUIView(_ field: NumericUITextFieldView, context: Context) {
+        let coord = context.coordinator
         if field.text != text {
             field.text = text
-            context.coordinator.bridge.text = text
+            coord.bridge.text = text
+            if field.isFirstResponder {
+                coord.cursorView?.reposition(in: field)
+            }
         }
         if field.font != font { field.font = font }
-        if field.textAlignment != textAlignment { field.textAlignment = textAlignment }
-        context.coordinator.parent = self
+        if field.textAlignment != textAlignment {
+            field.textAlignment = textAlignment
+            if field.isFirstResponder {
+                coord.cursorView?.reposition(in: field)
+            }
+        }
+        coord.parent = self
     }
 
     // MARK: - Coordinator
@@ -379,6 +464,7 @@ private struct NumericUITextField: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
+            cursorView?.reposition(in: textField)
             cursorView?.startBlinking()
             parent.onFocusChange(true)
         }
