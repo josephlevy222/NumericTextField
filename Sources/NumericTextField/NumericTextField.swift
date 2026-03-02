@@ -16,12 +16,14 @@ public struct NumericTextField: View {
                 style: NumericStringStyle = NumericStringStyle.defaultStyle,
                 onEditingChanged: @escaping (Bool) -> Void = { _ in },
                 onCommit: @escaping () -> Void = { },
+                onNext: (() -> Void)? = nil,
                 reformatter: @escaping (String) -> String = reformat) {
         self._numericText = numericText
         self.title = title
         self.style = style
         self.onEditingChanged = onEditingChanged
         self.onCommit = onCommit
+        self.onNext = onNext
         self.reformatter = reformatter
     }
 
@@ -30,6 +32,7 @@ public struct NumericTextField: View {
     public var style: NumericStringStyle = .defaultStyle
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
+    public var onNext: (() -> Void)? = nil
     public var reformatter: (_ stringValue: String) -> String = reformat
 
     // Set via modifiers
@@ -87,6 +90,7 @@ public struct NumericTextField: View {
             onDone: { value in
                 numericText = reformatter(value)
                 onCommit()
+                onNext?()
             },
             onFocusChange: { focused in
                 if !focused { numericText = reformatter(numericText) }
