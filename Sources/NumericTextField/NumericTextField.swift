@@ -14,6 +14,7 @@ public struct NumericTextField: View {
     public init(_ title: LocalizedStringKey,
                 numericText: Binding<String>,
                 style: NumericStringStyle = NumericStringStyle.defaultStyle,
+                isFocused: Binding<Bool> = .constant(false),
                 onEditingChanged: @escaping (Bool) -> Void = { _ in },
                 onCommit: @escaping () -> Void = { },
                 onNext: (() -> Void)? = nil,
@@ -21,6 +22,7 @@ public struct NumericTextField: View {
         self._numericText = numericText
         self.title = title
         self.style = style
+        self._isFocused = isFocused
         self.onEditingChanged = onEditingChanged
         self.onCommit = onCommit
         self.onNext = onNext
@@ -29,38 +31,44 @@ public struct NumericTextField: View {
 
     public let title: LocalizedStringKey
     @Binding public var numericText: String
-	public var isFocused: Binding<Bool> = .constant(false)
     public var style: NumericStringStyle = .defaultStyle
+    @Binding public var isFocused: Bool
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
     public var onNext: (() -> Void)? = nil
     public var reformatter: (_ stringValue: String) -> String = reformat
 
-    // Set via modifiers
+    // Font storage is platform-specific:
+    // iOS/Mac Catalyst: UITextField requires UIFont.
+    // macOS: SwiftUI TextField takes SwiftUI.Font via .font() modifier.
+#if os(iOS)
     private var _font: UIFont? = nil
+#else
+    private var _font: SwiftUI.Font? = nil
+#endif
     private var _textAlignment: NSTextAlignment = .natural
 
     // MARK: - Font modifiers
 
-    /// Sets the font using a SwiftUI.Font — same syntax as .font() on any SwiftUI view.
-    /// Uses UIFont(font:) from EditableText to convert SwiftUI.Font → UIFont.
-    /// If not called, defaults to a monospaced system font scaled to the current Dynamic Type size.
+#if os(iOS)
+    /// Sets the font using a SwiftUI.Font — converted to UIFont via EditableText.
     public func font(_ font: SwiftUI.Font) -> NumericTextField {
-        var copy = self
-        copy._font = UIFont(font: font)
-        return copy
+        var copy = self; copy._font = UIFont(font: font); return copy
     }
-
     /// Sets the font using a UIFont directly.
     public func font(_ font: UIFont) -> NumericTextField {
-        var copy = self
-        copy._font = font
-        return copy
+        var copy = self; copy._font = font; return copy
     }
+#else
+    /// Sets the font using a SwiftUI.Font.
+    public func font(_ font: SwiftUI.Font) -> NumericTextField {
+        var copy = self; copy._font = font; return copy
+    }
+#endif
 
     // MARK: - Alignment modifiers
 
-    /// Sets the text alignment using SwiftUI's TextAlignment.
+    /// Sets text alignment using SwiftUI TextAlignment.
     public func textAlignment(_ alignment: TextAlignment) -> NumericTextField {
         var copy = self
         copy._textAlignment = switch alignment {
@@ -71,11 +79,9 @@ public struct NumericTextField: View {
         return copy
     }
 
-    /// Sets the text alignment using NSTextAlignment directly.
+    /// Sets text alignment using NSTextAlignment directly.
     public func textAlignment(_ alignment: NSTextAlignment) -> NumericTextField {
-        var copy = self
-        copy._textAlignment = alignment
-        return copy
+        var copy = self; copy._textAlignment = alignment; return copy
     }
 
     // MARK: - Body
@@ -85,8 +91,8 @@ public struct NumericTextField: View {
         NumericFieldiOS(
             title,
             text: $numericText,
-			isFocused: isFocused,
             style: style,
+            isFocused: $isFocused,
             font: _font,
             textAlignment: _textAlignment,
             onDone: { value in
@@ -109,11 +115,35 @@ public struct NumericTextField: View {
             onCommit: {
                 numericText = reformatter(numericText)
                 onCommit()
+                onNext?()
             }
         )
         .numericText(number: $numericText, style: style)
         .onAppear { numericText = reformatter(numericText) }
+        .if(_font != nil) { $0.font(_font!) }
+        .multilineTextAlignment(_textAlignment.swiftUIAlignment)
 #endif
+    }
+}
+
+// MARK: - NSTextAlignment → SwiftUI.TextAlignment (macOS body needs this)
+
+private extension NSTextAlignment {
+    var swiftUIAlignment: TextAlignment {
+        switch self {
+        case .right:  return .trailing
+        case .center: return .center
+        default:      return .leading
+        }
+    }
+}
+
+// MARK: - Conditional view modifier helper
+
+private extension View {
+    @ViewBuilder
+    func `if`<C: View>(_ condition: Bool, transform: (Self) -> C) -> some View {
+        if condition { transform(self) } else { self }
     }
 }
 
@@ -181,8 +211,8 @@ struct NumericTextField_Previews: PreviewProvider {
 private struct NumericFieldiOS: View {
     let label: LocalizedStringKey
     @Binding var text: String
-	@Binding var isFocused: Bool
     var style: NumericStringStyle
+    @Binding var isFocused: Bool
     var font: UIFont?
     var textAlignment: NSTextAlignment
     var onDone: (String) -> Void
@@ -192,16 +222,16 @@ private struct NumericFieldiOS: View {
 
     init(_ label: LocalizedStringKey,
          text: Binding<String>,
-		 isFocused: Binding<Bool>,
          style: NumericStringStyle = .defaultStyle,
+         isFocused: Binding<Bool> = .constant(false),
          font: UIFont? = nil,
          textAlignment: NSTextAlignment = .natural,
          onDone: @escaping (String) -> Void = { _ in },
          onFocusChange: @escaping (Bool) -> Void = { _ in }) {
         self.label = label
         self._text = text
-		self._isFocused = isFocused
         self.style = style
+        self._isFocused = isFocused
         self.font = font
         self.textAlignment = textAlignment
         self.onDone = onDone
@@ -227,7 +257,7 @@ private struct NumericFieldiOS: View {
 
             NumericUITextField(
                 text: $text,
-				isFocused: $isFocused,
+                isFocused: $isFocused,
                 font: resolvedFont,
                 style: style,
                 textAlignment: textAlignment,
@@ -322,14 +352,11 @@ private class BlinkingCursorView: UIView {
         let cursorX: CGFloat
         switch field.textAlignment {
         case .right:
-            // Empty: pin to right edge (where placeholder trailing edge is)
-            // With text: sit just after the text, which is right-aligned
             cursorX = text.isEmpty
                 ? fieldWidth
                 : max(0, fieldWidth - textWidth)
 
         case .center:
-            // Text is centered; cursor sits just right of the centered block
             let textStart = (fieldWidth - textWidth) / 2
             cursorX = text.isEmpty
                 ? fieldWidth / 2
@@ -347,7 +374,6 @@ private class BlinkingCursorView: UIView {
 
 private class NumericUITextFieldView: UITextField {
     var onLayout: (() -> Void)?
-	
     override func layoutSubviews() {
         super.layoutSubviews()
         onLayout?()
@@ -358,7 +384,7 @@ private class NumericUITextFieldView: UITextField {
 
 private struct NumericUITextField: UIViewRepresentable {
     @Binding var text: String
-	@Binding var isFocused: Bool
+    @Binding var isFocused: Bool
     var font: UIFont
     var style: NumericStringStyle
     var textAlignment: NSTextAlignment
@@ -389,8 +415,7 @@ private struct NumericUITextField: UIViewRepresentable {
         field.addSubview(cursor)
         coord.cursorView = cursor
 
-        // Reposition cursor whenever the field lays out (bounds become valid,
-        // rotation, Dynamic Type change, etc.)
+        // Reposition cursor whenever the field lays out
         field.onLayout = { [weak field, weak coord] in
             guard let field, let coord, field.isFirstResponder else { return }
             coord.cursorView?.reposition(in: field)
@@ -401,7 +426,6 @@ private struct NumericUITextField: UIViewRepresentable {
             let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
             field?.text = filtered
             coord.parent.text = filtered
-            // Reposition after each keystroke
             if let field, field.isFirstResponder {
                 coord.cursorView?.reposition(in: field)
             }
@@ -445,11 +469,14 @@ private struct NumericUITextField: UIViewRepresentable {
 
     func updateUIView(_ field: NumericUITextFieldView, context: Context) {
         let coord = context.coordinator
-		if isFocused && !field.isFirstResponder {
-			field.becomeFirstResponder()
-		} else if !isFocused && field.isFirstResponder {
-			field.resignFirstResponder()
-		}
+
+        // Drive UIKit focus from SwiftUI isFocused binding
+        if isFocused && !field.isFirstResponder {
+            DispatchQueue.main.async { field.becomeFirstResponder() }
+        } else if !isFocused && field.isFirstResponder {
+            DispatchQueue.main.async { field.resignFirstResponder() }
+        }
+
         if field.text != text {
             field.text = text
             coord.bridge.text = text
@@ -480,19 +507,19 @@ private struct NumericUITextField: UIViewRepresentable {
             self.bridge = NumericTextBridge(parent.text, style: parent.style)
         }
 
-		func textFieldDidBeginEditing(_ textField: UITextField) {
-			parent.isFocused = true   // add this line
-			cursorView?.reposition(in: textField)
-			cursorView?.startBlinking()
-			parent.onFocusChange(true)
-		}
-		
-		func textFieldDidEndEditing(_ textField: UITextField) {
-			parent.isFocused = false  // add this line
-			cursorView?.stopBlinking()
-			parent.text = bridge.text
-			parent.onFocusChange(false)
-		}
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.isFocused = true
+            cursorView?.reposition(in: textField)
+            cursorView?.startBlinking()
+            parent.onFocusChange(true)
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFocused = false
+            cursorView?.stopBlinking()
+            parent.text = bridge.text
+            parent.onFocusChange(false)
+        }
 
         func textField(_ textField: UITextField,
                        shouldChangeCharactersIn range: NSRange,
