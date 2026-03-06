@@ -87,7 +87,7 @@ public struct NumericTextField: View {
     // MARK: - Body
 
     public var body: some View {
-#if os(iOS)
+#if os(iOS) && !targetEnvironment(macCatalyst)
         NumericFieldiOS(
             title,
             text: $numericText,
@@ -204,7 +204,7 @@ struct NumericTextField_Previews: PreviewProvider {
 
 // MARK: - iOS implementation
 
-#if os(iOS)
+#if os(iOS) && !targetEnvironment(macCatalyst)
 
 // MARK: - iOS SwiftUI wrapper
 
