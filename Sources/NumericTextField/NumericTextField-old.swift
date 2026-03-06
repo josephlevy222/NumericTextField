@@ -1,4 +1,5 @@
 // NumericTextField.swift
+#if false 
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -9,11 +10,12 @@ import EditableText   // provides UIFont(font: SwiftUI.Font)
 
 /// A `TextField` replacement that limits user input to numbers.
 /// On iOS: uses ScientificKeyboard instead of the system keyboard.
-/// On macOS / Mac Catalyst: uses a standard TextField with NumericTextModifier.
+/// On macOS / other platforms: uses a standard TextField with NumericTextModifier.
 public struct NumericTextField: View {
     public init(_ title: LocalizedStringKey,
                 numericText: Binding<String>,
                 style: NumericStringStyle = NumericStringStyle.defaultStyle,
+                isFocused: Binding<Bool> = .constant(false),
                 onEditingChanged: @escaping (Bool) -> Void = { _ in },
                 onCommit: @escaping () -> Void = { },
                 onNext: (() -> Void)? = nil,
@@ -21,6 +23,7 @@ public struct NumericTextField: View {
         self._numericText = numericText
         self.title = title
         self.style = style
+        self._isFocused = isFocused
         self.onEditingChanged = onEditingChanged
         self.onCommit = onCommit
         self.onNext = onNext
@@ -30,33 +33,43 @@ public struct NumericTextField: View {
     public let title: LocalizedStringKey
     @Binding public var numericText: String
     public var style: NumericStringStyle = .defaultStyle
+    @Binding public var isFocused: Bool
     public var onEditingChanged: (Bool) -> Void = { _ in }
     public var onCommit: () -> Void = { }
     public var onNext: (() -> Void)? = nil
     public var reformatter: (_ stringValue: String) -> String = reformat
 
-    // Set via modifiers — iOS (non-Catalyst) only
-#if os(iOS) && !targetEnvironment(macCatalyst)
+    // Font storage is platform-specific:
+    // iOS/Mac Catalyst: UITextField requires UIFont.
+    // macOS: SwiftUI TextField takes SwiftUI.Font via .font() modifier.
+#if os(iOS)
     private var _font: UIFont? = nil
+#else
+    private var _font: SwiftUI.Font? = nil
+#endif
     private var _textAlignment: NSTextAlignment = .natural
 
-    /// Sets the font using a SwiftUI.Font — same syntax as .font() on any SwiftUI view.
-    /// Uses UIFont(font:) from EditableText to convert SwiftUI.Font → UIFont.
-    /// If not called, defaults to a monospaced system font scaled to the current Dynamic Type size.
-    public func font(_ font: SwiftUI.Font) -> NumericTextField {
-        var copy = self
-        copy._font = UIFont(font: font)
-        return copy
-    }
+    // MARK: - Font modifiers
 
+#if os(iOS)
+    /// Sets the font using a SwiftUI.Font — converted to UIFont via EditableText.
+    public func font(_ font: SwiftUI.Font) -> NumericTextField {
+        var copy = self; copy._font = UIFont(font: font); return copy
+    }
     /// Sets the font using a UIFont directly.
     public func font(_ font: UIFont) -> NumericTextField {
-        var copy = self
-        copy._font = font
-        return copy
+        var copy = self; copy._font = font; return copy
     }
+#else
+    /// Sets the font using a SwiftUI.Font.
+    public func font(_ font: SwiftUI.Font) -> NumericTextField {
+        var copy = self; copy._font = font; return copy
+    }
+#endif
 
-    /// Sets the text alignment using SwiftUI's TextAlignment.
+    // MARK: - Alignment modifiers
+
+    /// Sets text alignment using SwiftUI TextAlignment.
     public func textAlignment(_ alignment: TextAlignment) -> NumericTextField {
         var copy = self
         copy._textAlignment = switch alignment {
@@ -67,13 +80,10 @@ public struct NumericTextField: View {
         return copy
     }
 
-    /// Sets the text alignment using NSTextAlignment directly.
+    /// Sets text alignment using NSTextAlignment directly.
     public func textAlignment(_ alignment: NSTextAlignment) -> NumericTextField {
-        var copy = self
-        copy._textAlignment = alignment
-        return copy
+        var copy = self; copy._textAlignment = alignment; return copy
     }
-#endif
 
     // MARK: - Body
 
@@ -83,6 +93,7 @@ public struct NumericTextField: View {
             title,
             text: $numericText,
             style: style,
+            isFocused: $isFocused,
             font: _font,
             textAlignment: _textAlignment,
             onDone: { value in
@@ -98,18 +109,42 @@ public struct NumericTextField: View {
         .onAppear { numericText = reformatter(numericText) }
 #else
         TextField(title, text: $numericText,
-            onEditingChanged: { editing in
-                if !editing { numericText = reformatter(numericText) }
-                onEditingChanged(editing)
+            onEditingChanged: { exited in
+                if !exited { numericText = reformatter(numericText) }
+                onEditingChanged(exited)
             },
             onCommit: {
                 numericText = reformatter(numericText)
                 onCommit()
+                onNext?()
             }
         )
         .numericText(number: $numericText, style: style)
         .onAppear { numericText = reformatter(numericText) }
+        .if(_font != nil) { $0.font(_font!) }
+        .multilineTextAlignment(_textAlignment.swiftUIAlignment)
 #endif
+    }
+}
+
+// MARK: - NSTextAlignment → SwiftUI.TextAlignment (macOS body needs this)
+
+private extension NSTextAlignment {
+    var swiftUIAlignment: TextAlignment {
+        switch self {
+        case .right:  return .trailing
+        case .center: return .center
+        default:      return .leading
+        }
+    }
+}
+
+// MARK: - Conditional view modifier helper
+
+private extension View {
+    @ViewBuilder
+    func `if`<C: View>(_ condition: Bool, transform: (Self) -> C) -> some View {
+        if condition { transform(self) } else { self }
     }
 }
 
@@ -149,6 +184,7 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField("Int", numericText: $int,
                                  style: NumericStringStyle(decimalSeparator: false))
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -156,6 +192,8 @@ struct NumericTextField_Previews: PreviewProvider {
             }
             HStack {
                 NumericTextField("Double", numericText: $double)
+                    .font(.system(size: 20, weight: .light, design: .monospaced))
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -165,7 +203,7 @@ struct NumericTextField_Previews: PreviewProvider {
     }
 }
 
-// MARK: - iOS implementation (non-Catalyst only)
+// MARK: - iOS implementation
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
 
@@ -175,6 +213,7 @@ private struct NumericFieldiOS: View {
     let label: LocalizedStringKey
     @Binding var text: String
     var style: NumericStringStyle
+    @Binding var isFocused: Bool
     var font: UIFont?
     var textAlignment: NSTextAlignment
     var onDone: (String) -> Void
@@ -185,6 +224,7 @@ private struct NumericFieldiOS: View {
     init(_ label: LocalizedStringKey,
          text: Binding<String>,
          style: NumericStringStyle = .defaultStyle,
+         isFocused: Binding<Bool> = .constant(false),
          font: UIFont? = nil,
          textAlignment: NSTextAlignment = .natural,
          onDone: @escaping (String) -> Void = { _ in },
@@ -192,6 +232,7 @@ private struct NumericFieldiOS: View {
         self.label = label
         self._text = text
         self.style = style
+        self._isFocused = isFocused
         self.font = font
         self.textAlignment = textAlignment
         self.onDone = onDone
@@ -217,6 +258,7 @@ private struct NumericFieldiOS: View {
 
             NumericUITextField(
                 text: $text,
+                isFocused: $isFocused,
                 font: resolvedFont,
                 style: style,
                 textAlignment: textAlignment,
@@ -343,6 +385,7 @@ private class NumericUITextFieldView: UITextField {
 
 private struct NumericUITextField: UIViewRepresentable {
     @Binding var text: String
+    @Binding var isFocused: Bool
     var font: UIFont
     var style: NumericStringStyle
     var textAlignment: NSTextAlignment
@@ -427,6 +470,14 @@ private struct NumericUITextField: UIViewRepresentable {
 
     func updateUIView(_ field: NumericUITextFieldView, context: Context) {
         let coord = context.coordinator
+
+        // Drive UIKit focus from SwiftUI isFocused binding
+        if isFocused && !field.isFirstResponder {
+            DispatchQueue.main.async { field.becomeFirstResponder() }
+        } else if !isFocused && field.isFirstResponder {
+            DispatchQueue.main.async { field.resignFirstResponder() }
+        }
+
         if field.text != text {
             field.text = text
             coord.bridge.text = text
@@ -458,12 +509,14 @@ private struct NumericUITextField: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.isFocused = true
             cursorView?.reposition(in: textField)
             cursorView?.startBlinking()
             parent.onFocusChange(true)
         }
 
         func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFocused = false
             cursorView?.stopBlinking()
             parent.text = bridge.text
             parent.onFocusChange(false)
@@ -475,4 +528,5 @@ private struct NumericUITextField: UIViewRepresentable {
     }
 }
 
+#endif
 #endif
