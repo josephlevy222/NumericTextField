@@ -360,19 +360,31 @@ private class BlinkingCursorView: UIView {
 
 private class NumericUITextFieldView: UITextField {
     var onLayout: (() -> Void)?
+    weak var coord: NumericUITextField.Coordinator?
+
     override func layoutSubviews() {
         super.layoutSubviews()
         onLayout?()
     }
 
-    // On iPad, SwiftUI popovers run in a non-key UIWindow. UITextField
-    // with a custom inputView cannot become first responder in a non-key
-    // window. Override becomeFirstResponder to make our window key first.
-    override func becomeFirstResponder() -> Bool {
-        if let window, !window.isKeyWindow {
-            window.makeKeyAndVisible()
+    // When the field enters a window, attach the keyboard UIHostingController
+    // to the nearest ancestor VC. Without this, UIKit silently refuses to
+    // present the custom inputView on iOS 17 iPad popovers.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard let coord,
+              let host = coord.hostingController,
+              host.parent == nil
+        else { return }
+        var responder: UIResponder? = self.next
+        while let r = responder {
+            if let vc = r as? UIViewController {
+                vc.addChild(host)
+                host.didMove(toParent: vc)
+                return
+            }
+            responder = r.next
         }
-        return super.becomeFirstResponder()
     }
 }
 
@@ -466,6 +478,7 @@ private struct NumericUITextField: UIViewRepresentable {
         field.inputView = container
         field.inputAccessoryView = UIView()
         coord.hostingController = host
+        field.coord = coord
 
         return field
     }
@@ -496,6 +509,7 @@ private struct NumericUITextField: UIViewRepresentable {
         let bridge: NumericTextBridge
         var cursorView: BlinkingCursorView?
         var hostingController: UIHostingController<KeyboardHost>?
+        weak var field: NumericUITextFieldView?
 
         init(_ parent: NumericUITextField) {
             self.parent = parent
