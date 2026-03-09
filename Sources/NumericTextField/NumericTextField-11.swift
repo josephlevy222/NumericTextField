@@ -295,7 +295,11 @@ private class KeyboardContainerView: UIView {
 
 private class BlinkingCursorView: UIView {
 
+    private(set) var isBlinking = false
+
     func startBlinking() {
+        guard !isBlinking else { return }
+        isBlinking = true
         layer.removeAllAnimations()
         alpha = 1
         UIView.animate(
@@ -307,6 +311,7 @@ private class BlinkingCursorView: UIView {
     }
 
     func stopBlinking() {
+        isBlinking = false
         layer.removeAllAnimations()
         alpha = 0
     }
@@ -359,6 +364,16 @@ private class NumericUITextFieldView: UITextField {
         super.layoutSubviews()
         onLayout?()
     }
+
+    // On iPad, SwiftUI popovers run in a non-key UIWindow. UITextField
+    // with a custom inputView cannot become first responder in a non-key
+    // window. Override becomeFirstResponder to make our window key first.
+    override func becomeFirstResponder() -> Bool {
+        if let window, !window.isKeyWindow {
+            window.makeKeyAndVisible()
+        }
+        return super.becomeFirstResponder()
+    }
 }
 
 // MARK: - UIViewRepresentable
@@ -400,6 +415,12 @@ private struct NumericUITextField: UIViewRepresentable {
         field.onLayout = { [weak field, weak coord] in
             guard let field, let coord, field.isFirstResponder else { return }
             coord.cursorView?.reposition(in: field)
+            // If bounds weren't valid when textFieldDidBeginEditing fired
+            // (e.g. iPad popover layout not yet complete), startBlinking was
+            // skipped. Retry here once bounds are valid.
+            if coord.cursorView?.isBlinking == false {
+                coord.cursorView?.startBlinking()
+            }
         }
 
         // Bridge: filter all input through numericValue(style:)
@@ -446,16 +467,6 @@ private struct NumericUITextField: UIViewRepresentable {
         field.inputAccessoryView = UIView()
         coord.hostingController = host
 
-        // Add the keyboard hosting controller as a child of the nearest
-        // ancestor view controller so UIKit can present the inputView
-        // correctly inside popovers on iPad.
-        DispatchQueue.main.async {
-            if let parentVC = field.findViewController() {
-                parentVC.addChild(host)
-                host.didMove(toParent: parentVC)
-            }
-        }
-
         return field
     }
 
@@ -492,8 +503,13 @@ private struct NumericUITextField: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
-            cursorView?.reposition(in: textField)
-            cursorView?.startBlinking()
+            if textField.bounds.width > 0 {
+                cursorView?.reposition(in: textField)
+                cursorView?.startBlinking()
+            }
+            // If bounds aren't valid yet (e.g. inside an iPad popover that
+            // hasn't finished layout), onLayout will fire after the next
+            // layoutSubviews and reposition+startBlinking will run then.
             parent.onFocusChange(true)
         }
 
@@ -511,12 +527,3 @@ private struct NumericUITextField: UIViewRepresentable {
 
 #endif
 
-#if os(iOS) && !targetEnvironment(macCatalyst)
-private extension UIView {
-    func findViewController() -> UIViewController? {
-        if let next = next as? UIViewController { return next }
-        if let next = next as? UIView { return next.findViewController() }
-        return nil
-    }
-}
-#endif
