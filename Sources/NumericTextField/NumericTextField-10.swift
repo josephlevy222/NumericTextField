@@ -9,7 +9,7 @@ import EditableText   // provides UIFont(font: SwiftUI.Font)
 
 /// A `TextField` replacement that limits user input to numbers.
 /// On iOS: uses ScientificKeyboard instead of the system keyboard.
-/// On macOS / Mac Catalyst: uses a standard TextField with NumericTextModifier.
+/// On macOS / other platforms: uses a standard TextField with NumericTextModifier.
 public struct NumericTextField: View {
     public init(_ title: LocalizedStringKey,
                 numericText: Binding<String>,
@@ -35,45 +35,61 @@ public struct NumericTextField: View {
     public var onNext: (() -> Void)? = nil
     public var reformatter: (_ stringValue: String) -> String = reformat
 
-    // Set via modifiers — iOS (non-Catalyst) only
-#if os(iOS) && !targetEnvironment(macCatalyst)
+    // Set via modifiers
+    #if os(iOS) && !targetEnvironment(macCatalyst)
     private var _font: UIFont? = nil
     private var _textAlignment: NSTextAlignment = .natural
+    #endif
+
+    // MARK: - Font modifiers
 
     /// Sets the font using a SwiftUI.Font — same syntax as .font() on any SwiftUI view.
     /// Uses UIFont(font:) from EditableText to convert SwiftUI.Font → UIFont.
     /// If not called, defaults to a monospaced system font scaled to the current Dynamic Type size.
     public func font(_ font: SwiftUI.Font) -> NumericTextField {
         var copy = self
+        #if os(iOS) && !targetEnvironment(macCatalyst)
         copy._font = UIFont(font: font)
+        #endif
         return copy
     }
 
     /// Sets the font using a UIFont directly.
+    #if os(iOS)
     public func font(_ font: UIFont) -> NumericTextField {
         var copy = self
+        #if !targetEnvironment(macCatalyst)
         copy._font = font
+        #endif
         return copy
     }
+    #endif
+
+    // MARK: - Alignment modifiers
 
     /// Sets the text alignment using SwiftUI's TextAlignment.
     public func textAlignment(_ alignment: TextAlignment) -> NumericTextField {
         var copy = self
+        #if os(iOS) && !targetEnvironment(macCatalyst)
         copy._textAlignment = switch alignment {
             case .leading:  .left
             case .center:   .center
             case .trailing: .right
         }
+        #endif
         return copy
     }
 
     /// Sets the text alignment using NSTextAlignment directly.
+    #if os(iOS)
     public func textAlignment(_ alignment: NSTextAlignment) -> NumericTextField {
         var copy = self
+        #if !targetEnvironment(macCatalyst)
         copy._textAlignment = alignment
+        #endif
         return copy
     }
-#endif
+    #endif
 
     // MARK: - Body
 
@@ -98,9 +114,9 @@ public struct NumericTextField: View {
         .onAppear { numericText = reformatter(numericText) }
 #else
         TextField(title, text: $numericText,
-            onEditingChanged: { editing in
-                if !editing { numericText = reformatter(numericText) }
-                onEditingChanged(editing)
+            onEditingChanged: { exited in
+                if !exited { numericText = reformatter(numericText) }
+                onEditingChanged(exited)
             },
             onCommit: {
                 numericText = reformatter(numericText)
@@ -149,6 +165,7 @@ struct NumericTextField_Previews: PreviewProvider {
             HStack {
                 NumericTextField("Int", numericText: $int,
                                  style: NumericStringStyle(decimalSeparator: false))
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -156,6 +173,8 @@ struct NumericTextField_Previews: PreviewProvider {
             }
             HStack {
                 NumericTextField("Double", numericText: $double)
+                    .font(.system(size: 20, weight: .light, design: .monospaced))
+                    .textAlignment(.trailing)
                     .frame(width: 200)
                     .border(.foreground, width: 1)
                     .padding()
@@ -165,7 +184,7 @@ struct NumericTextField_Previews: PreviewProvider {
     }
 }
 
-// MARK: - iOS implementation (non-Catalyst only)
+// MARK: - iOS implementation
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
 
@@ -311,11 +330,14 @@ private class BlinkingCursorView: UIView {
         let cursorX: CGFloat
         switch field.textAlignment {
         case .right:
+            // Empty: pin to right edge (where placeholder trailing edge is)
+            // With text: sit just after the text, which is right-aligned
             cursorX = text.isEmpty
                 ? fieldWidth
                 : max(0, fieldWidth - textWidth)
 
         case .center:
+            // Text is centered; cursor sits just right of the centered block
             let textStart = (fieldWidth - textWidth) / 2
             cursorX = text.isEmpty
                 ? fieldWidth / 2
@@ -373,7 +395,8 @@ private struct NumericUITextField: UIViewRepresentable {
         field.addSubview(cursor)
         coord.cursorView = cursor
 
-        // Reposition cursor whenever the field lays out
+        // Reposition cursor whenever the field lays out (bounds become valid,
+        // rotation, Dynamic Type change, etc.)
         field.onLayout = { [weak field, weak coord] in
             guard let field, let coord, field.isFirstResponder else { return }
             coord.cursorView?.reposition(in: field)
@@ -384,6 +407,7 @@ private struct NumericUITextField: UIViewRepresentable {
             let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
             field?.text = filtered
             coord.parent.text = filtered
+            // Reposition after each keystroke
             if let field, field.isFirstResponder {
                 coord.cursorView?.reposition(in: field)
             }
@@ -421,6 +445,16 @@ private struct NumericUITextField: UIViewRepresentable {
         field.inputView = container
         field.inputAccessoryView = UIView()
         coord.hostingController = host
+
+        // Add the keyboard hosting controller as a child of the nearest
+        // ancestor view controller so UIKit can present the inputView
+        // correctly inside popovers on iPad.
+        DispatchQueue.main.async {
+            if let parentVC = field.findViewController() {
+                parentVC.addChild(host)
+                host.didMove(toParent: parentVC)
+            }
+        }
 
         return field
     }
@@ -475,4 +509,14 @@ private struct NumericUITextField: UIViewRepresentable {
     }
 }
 
+#endif
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+private extension UIView {
+    func findViewController() -> UIViewController? {
+        if let next = next as? UIViewController { return next }
+        if let next = next as? UIView { return next.findViewController() }
+        return nil
+    }
+}
 #endif
