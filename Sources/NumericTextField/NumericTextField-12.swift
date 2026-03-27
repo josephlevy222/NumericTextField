@@ -1,5 +1,5 @@
 // NumericTextField.swift
-
+#if false
 import SwiftUI
 
 #if os(iOS)
@@ -362,4 +362,5 @@ private class BlinkingCursorView: UIView {
 	}
 }
 
+#endif
 #endif

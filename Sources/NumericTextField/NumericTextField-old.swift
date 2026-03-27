@@ -1,5 +1,5 @@
 // NumericTextField.swift
-#if false 
+//#if false 
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -530,4 +530,4 @@ private struct NumericUITextField: UIViewRepresentable {
 
 #endif
 
-#endif
+//#endif
