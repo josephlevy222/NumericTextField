@@ -371,22 +371,22 @@ private class NumericUITextFieldView: UITextField {
     // When the field enters a window, attach the keyboard UIHostingController
     // to the nearest ancestor VC. Without this, UIKit silently refuses to
     // present the custom inputView on iOS 17 iPad popovers.
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard let coord,
-              let host = coord.hostingController,
-              host.parent == nil
-        else { return }
-        var responder: UIResponder? = self.next
-        while let r = responder {
-            if let vc = r as? UIViewController {
-                vc.addChild(host)
-                host.didMove(toParent: vc)
-                return
-            }
-            responder = r.next
-        }
-    }
+//    override func didMoveToWindow() {
+//        super.didMoveToWindow()
+//        guard let coord,
+//              let host = coord.hostingController,
+//              host.parent == nil
+//        else { return }
+//        var responder: UIResponder? = self.next
+//        while let r = responder {
+//            if let vc = r as? UIViewController {
+//                vc.addChild(host)
+//                host.didMove(toParent: vc)
+//                return
+//            }
+//            responder = r.next
+//        }
+//    }
 }
 
 // MARK: - UIViewRepresentable
@@ -402,11 +402,20 @@ private struct NumericUITextField: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-
+	
+	private func findParentViewController(of view: UIView) -> UIViewController? {
+		var responder: UIResponder? = view
+		while let r = responder {
+			if let vc = r as? UIViewController { return vc }
+			responder = r.next
+		}
+		return nil
+	}
+	
     func makeUIView(context: Context) -> NumericUITextFieldView {
         let field = NumericUITextFieldView()
         let coord = context.coordinator
-
+		
         field.delegate = coord
         field.font = font
         field.textColor = .label
@@ -414,7 +423,7 @@ private struct NumericUITextField: UIViewRepresentable {
         field.tintColor = .clear
         field.autocorrectionType = .no
         field.spellCheckingType = .no
-
+		
         // Cursor as plain subview — positioned by reposition(in:)
         let cursor = BlinkingCursorView()
         cursor.backgroundColor = .systemBlue
@@ -447,15 +456,23 @@ private struct NumericUITextField: UIViewRepresentable {
             }
         }
 
-        // Build and attach the custom keyboard
-        let host = UIHostingController(rootView: KeyboardHost(
-            bridge: coord.bridge,
-            onDone: { value in
-                coord.parent.onDone(value)
-                field.resignFirstResponder()
-            }
-        ))
-
+		// Build and attach the custom keyboard
+		let host = UIHostingController(rootView: KeyboardHost(
+			bridge: coord.bridge,
+			onDone: { value in
+				coord.parent.onDone(value)
+				field.resignFirstResponder()
+			}
+		))
+		
+		// Add host as child VC before assigning to inputView
+		DispatchQueue.main.async {
+			if let vc = findParentViewController(of: field), host.parent == nil {
+				vc.addChild(host)
+				host.didMove(toParent: vc)
+			}
+		}
+		
         let targetHeight = host.view.systemLayoutSizeFitting(
             CGSize(width: UIScreen.main.bounds.width,
                    height: UIView.layoutFittingCompressedSize.height)
