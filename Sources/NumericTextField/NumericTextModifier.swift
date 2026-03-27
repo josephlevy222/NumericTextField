@@ -14,7 +14,7 @@ public struct NumericTextModifier: ViewModifier {
     ///   - style:: The style of number allowed/formatted 
     public func body(content: Content) -> some View {
         content
-            .onChange(of: number) { _, newValue in
+            .onChange(of: number) {  newValue in
                 number = newValue.numericValue(style: style).uppercased()
             }
     }
