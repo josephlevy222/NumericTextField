@@ -87,41 +87,41 @@ public struct NumericTextField: View {
 
     // MARK: - Body
 
-    public var body: some View {
+	public var body: some View {
 #if os(iOS) && !targetEnvironment(macCatalyst)
-        NumericFieldiOS(
-            title,
-            text: $numericText,
-            style: style,
-            isFocused: $isFocused,
-            font: _font,
-            textAlignment: _textAlignment,
-            onDone: { value in
-                numericText = reformatter(value)
-                onCommit()
-                onNext?()
-            },
-            onFocusChange: { focused in
-                if !focused { numericText = reformatter(numericText) }
-                onEditingChanged(focused)
-            }
-        )
-        .onAppear { numericText = reformatter(numericText) }
+		NumericFieldiOS(
+			title,
+			text: $numericText,
+			style: style,
+			isFocused: $isFocused,
+			font: _font,
+			textAlignment: _textAlignment,
+			onDone: { value in
+				numericText = reformatter(value)
+				onCommit()
+				onNext?()
+			},
+			onFocusChange: { focused in
+				if !focused { numericText = reformatter(numericText) }
+				onEditingChanged(focused)
+			}
+		)
+		.onAppear { numericText = reformatter(numericText) }
 #else
-        TextField(title, text: $numericText,
-            onEditingChanged: { exited in
-                if !exited { numericText = reformatter(numericText) }
-                onEditingChanged(exited)
-            },
-            onCommit: {
-                numericText = reformatter(numericText)
-                onCommit()
-                onNext?()
-            }
-        )
-        .numericText(number: $numericText, style: style)
-        .onAppear { numericText = reformatter(numericText) }
-        .if(_font != nil) { $0.font(_font!) }
+		TextField(title, text: $numericText,
+				  onEditingChanged: { exited in
+			if !exited { numericText = reformatter(numericText) }
+			onEditingChanged(exited)
+		},
+				  onCommit: {
+			numericText = reformatter(numericText)
+			onCommit()
+			onNext?()
+		}
+		)
+		.numericText(number: $numericText, style: style)
+		.onAppear { numericText = reformatter(numericText) }
+		.if(_font != nil) { _ in font(_font!) }
         .multilineTextAlignment(_textAlignment.swiftUIAlignment)
 #endif
     }
