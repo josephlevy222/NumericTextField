@@ -472,11 +472,11 @@ private struct NumericUITextField: UIViewRepresentable {
         let coord = context.coordinator
 
         // Drive UIKit focus from SwiftUI isFocused binding
-        if isFocused && !field.isFirstResponder {
-            DispatchQueue.main.async { field.becomeFirstResponder() }
-        } else if !isFocused && field.isFirstResponder {
-            DispatchQueue.main.async { field.resignFirstResponder() }
-        }
+//        if isFocused && !field.isFirstResponder {
+//            DispatchQueue.main.async { field.becomeFirstResponder() }
+//        } else if !isFocused && field.isFirstResponder {
+//            DispatchQueue.main.async { field.resignFirstResponder() }
+//        }
 
         if field.text != text {
             field.text = text
