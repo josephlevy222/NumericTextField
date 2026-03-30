@@ -284,87 +284,173 @@ private class KeyboardContainerView: UIView {
 
 // MARK: - Blinking cursor view
 
+//private class BlinkingCursorView: UIView {
+//    private var observerToken: NSObjectProtocol?
+//
+//    override func didMoveToWindow() {
+//        super.didMoveToWindow()
+//        // Subscribe to begin-editing notifications from any NumericTextField.
+//        // When another field gains focus, stop blinking unless it's our own field.
+//        observerToken = NotificationCenter.default.addObserver(
+//            forName: .numericFieldDidBeginEditing,
+//            object: nil,
+//            queue: .main
+//        ) { [weak self] notification in
+//            guard let self else { return }
+//            if (notification.object as? UIView) !== self.superview {
+//                self.stopBlinking()
+//            }
+//        }
+//    }
+//
+//    deinit {
+//        if let token = observerToken {
+//            NotificationCenter.default.removeObserver(token)
+//        }
+//    }
+//
+//    func startBlinking() {
+//        layer.removeAllAnimations()
+//        alpha = 1
+//        UIView.animate(
+//            withDuration: 0.5,
+//            delay: 0,
+//            options: [.repeat, .autoreverse, .allowUserInteraction],
+//            animations: { self.alpha = 0 }
+//        )
+//        // Notify all other cursor views to stop blinking.
+//        // object is our superview (the UITextField) so each cursor can
+//        // identify whether the notification is for itself or another field.
+//        NotificationCenter.default.post(
+//            name: .numericFieldDidBeginEditing,
+//            object: superview
+//        )
+//    }
+//
+//    func stopBlinking() {
+//        layer.removeAllAnimations()
+//        alpha = 0
+//    }
+//
+//    /// Repositions the cursor inside `field` so it sits exactly where
+//    /// the next keystroke will appear, respecting alignment and current text.
+//    func reposition(in field: UITextField) {
+//        guard let font = field.font else { return }
+//        let text = field.text ?? ""
+//        let fieldWidth = field.bounds.width
+//        let fieldHeight = field.bounds.height
+//        guard fieldWidth > 0 else { return }
+//
+//        let cursorHeight = font.lineHeight * 1.1
+//        let cursorY = (fieldHeight - cursorHeight) / 2
+//
+//        let textWidth: CGFloat = text.isEmpty
+//            ? 0
+//            : (text as NSString).size(withAttributes: [.font: font]).width
+//
+//        let cursorX: CGFloat
+//        switch field.textAlignment {
+//        case .right:
+//            cursorX = fieldWidth
+//        case .center:
+//            let textStart = (fieldWidth - textWidth) / 2
+//            cursorX = text.isEmpty
+//                ? fieldWidth / 2
+//                : min(textStart + textWidth, fieldWidth)
+//        default:
+//            cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
+//        }
+//
+//        frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
+//    }
+//}
 private class BlinkingCursorView: UIView {
-    private var observerToken: NSObjectProtocol?
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        // Subscribe to begin-editing notifications from any NumericTextField.
-        // When another field gains focus, stop blinking unless it's our own field.
-        observerToken = NotificationCenter.default.addObserver(
-            forName: .numericFieldDidBeginEditing,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self else { return }
-            if (notification.object as? UIView) !== self.superview {
-                self.stopBlinking()
-            }
-        }
-    }
-
-    deinit {
-        if let token = observerToken {
-            NotificationCenter.default.removeObserver(token)
-        }
-    }
-
-    func startBlinking() {
-        layer.removeAllAnimations()
-        alpha = 1
-        UIView.animate(
-            withDuration: 0.5,
-            delay: 0,
-            options: [.repeat, .autoreverse, .allowUserInteraction],
-            animations: { self.alpha = 0 }
-        )
-        // Notify all other cursor views to stop blinking.
-        // object is our superview (the UITextField) so each cursor can
-        // identify whether the notification is for itself or another field.
-        NotificationCenter.default.post(
-            name: .numericFieldDidBeginEditing,
-            object: superview
-        )
-    }
-
-    func stopBlinking() {
-        layer.removeAllAnimations()
-        alpha = 0
-    }
-
-    /// Repositions the cursor inside `field` so it sits exactly where
-    /// the next keystroke will appear, respecting alignment and current text.
-    func reposition(in field: UITextField) {
-        guard let font = field.font else { return }
-        let text = field.text ?? ""
-        let fieldWidth = field.bounds.width
-        let fieldHeight = field.bounds.height
-        guard fieldWidth > 0 else { return }
-
-        let cursorHeight = font.lineHeight * 1.1
-        let cursorY = (fieldHeight - cursorHeight) / 2
-
-        let textWidth: CGFloat = text.isEmpty
-            ? 0
-            : (text as NSString).size(withAttributes: [.font: font]).width
-
-        let cursorX: CGFloat
-        switch field.textAlignment {
-        case .right:
-            cursorX = fieldWidth
-        case .center:
-            let textStart = (fieldWidth - textWidth) / 2
-            cursorX = text.isEmpty
-                ? fieldWidth / 2
-                : min(textStart + textWidth, fieldWidth)
-        default:
-            cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
-        }
-
-        frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
-    }
+	private var observerToken: NSObjectProtocol?
+	
+	override func didMoveToWindow() {
+		super.didMoveToWindow()
+		// Remove any existing observer before adding a new one —
+		// didMoveToWindow can fire multiple times as SwiftUI rebuilds
+		if let token = observerToken {
+			NotificationCenter.default.removeObserver(token)
+			observerToken = nil
+		}
+		// Only subscribe when actually in a window
+		guard window != nil else { return }
+		observerToken = NotificationCenter.default.addObserver(
+			forName: .numericFieldDidBeginEditing,
+			object: nil,
+			queue: .main
+		) { [weak self] notification in
+			guard let self else { return }
+			guard let postingField = notification.object as? UIView else { return }
+			if postingField !== self.superview {
+				self.stopBlinking()
+			}
+		}
+	}
+	
+	deinit {
+		if let token = observerToken {
+			NotificationCenter.default.removeObserver(token)
+		}
+	}
+	
+	func startBlinking() {
+		layer.removeAllAnimations()
+		alpha = 1
+		UIView.animate(
+			withDuration: 0.5,
+			delay: 0,
+			options: [.repeat, .autoreverse, .allowUserInteraction],
+			animations: { self.alpha = 0 }
+		)
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			NotificationCenter.default.post(
+				name: .numericFieldDidBeginEditing,
+				object: self.superview
+			)
+		}
+	}
+	
+	func stopBlinking() {
+		layer.removeAllAnimations()
+		alpha = 0
+	}
+	
+	/// Repositions the cursor inside `field` so it sits exactly where
+	/// the next keystroke will appear, respecting alignment and current text.
+	func reposition(in field: UITextField) {
+		guard let font = field.font else { return }
+		let text = field.text ?? ""
+		let fieldWidth = field.bounds.width
+		let fieldHeight = field.bounds.height
+		guard fieldWidth > 0 else { return }
+		
+		let cursorHeight = font.lineHeight * 1.1
+		let cursorY = (fieldHeight - cursorHeight) / 2
+		
+		let textWidth: CGFloat = text.isEmpty
+		? 0
+		: (text as NSString).size(withAttributes: [.font: font]).width
+		
+		let cursorX: CGFloat
+		switch field.textAlignment {
+		case .right:
+			cursorX = fieldWidth
+		case .center:
+			let textStart = (fieldWidth - textWidth) / 2
+			cursorX = text.isEmpty
+			? fieldWidth / 2
+			: min(textStart + textWidth, fieldWidth)
+		default:
+			cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
+		}
+		
+		frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
+	}
 }
-
 // MARK: - UITextField subclass to catch layout changes
 
 private class NumericUITextFieldView: UITextField {
