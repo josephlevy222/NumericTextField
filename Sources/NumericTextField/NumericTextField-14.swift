@@ -396,7 +396,7 @@ private class BlinkingCursorView: UIView {
 	
 	func startBlinking() {
 		layer.removeAllAnimations()
-		alpha = 0
+		alpha = 1
 		UIView.animate(
 			withDuration: 0.5,
 			delay: 0,
@@ -404,11 +404,13 @@ private class BlinkingCursorView: UIView {
 			animations: { self.alpha = 0 }
 		)
 		// No notification here — Coordinator posts it
+		print("startBlinking on cursor \(ObjectIdentifier(self))")
 	}
 	
 	func stopBlinking() {
 		layer.removeAllAnimations()
 		alpha = 0
+		print("stopBlinking on cursor \(ObjectIdentifier(self))")
 	}
 	
 	/// Repositions the cursor inside `field` so it sits exactly where
@@ -469,9 +471,10 @@ private struct NumericUITextField: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> NumericUITextFieldView {
+		
         let field = NumericUITextFieldView()
         let coord = context.coordinator
-
+		
         field.delegate = coord
         field.font = font
         field.textColor = .label
@@ -492,7 +495,8 @@ private struct NumericUITextField: UIViewRepresentable {
             guard let field, let coord, field.isFirstResponder else { return }
             coord.cursorView?.reposition(in: field)
         }
-
+		print("makeUIView creating cursor \(ObjectIdentifier(cursor)) for field \(ObjectIdentifier(field))")
+		
         coord.bridge.onChange = { [weak field] newValue in
             let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
             field?.text = filtered
