@@ -396,7 +396,7 @@ private class BlinkingCursorView: UIView {
 	
 	func startBlinking() {
 		layer.removeAllAnimations()
-		alpha = 1
+		alpha = 0
 		UIView.animate(
 			withDuration: 0.5,
 			delay: 0,
