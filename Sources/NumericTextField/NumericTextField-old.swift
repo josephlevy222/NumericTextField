@@ -510,8 +510,8 @@ private struct NumericUITextField: UIViewRepresentable {
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
             parent.isFocused = true
-            cursorView?.reposition(in: textField)
             cursorView?.startBlinking()
+			cursorView?.reposition(in: textField)
             parent.onFocusChange(true)
         }
 
