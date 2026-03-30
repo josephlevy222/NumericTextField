@@ -383,7 +383,9 @@ private class BlinkingCursorView: UIView {
 			queue: .main
 		) { [weak self] notification in
 			guard let self else { return }
-			guard let postingField = notification.object as? UIView else { return }
+			let postingField = notification.object as? UIView
+			print("observer fired: postingField = \(String(describing: postingField)), my superview = \(String(describing: self.superview))")
+			guard let postingField else { return }
 			if postingField !== self.superview {
 				self.stopBlinking()
 			}
@@ -405,18 +407,20 @@ private class BlinkingCursorView: UIView {
 			options: [.repeat, .autoreverse, .allowUserInteraction],
 			animations: { self.alpha = 0 }
 		)
-		DispatchQueue.main.async { [weak self] in
-			guard let self else { return }
+		print("startBlinking posting: superview = \(String(describing: superview))")
+//		DispatchQueue.main.async { [weak self] in
+//			guard let self else { return }
 			NotificationCenter.default.post(
 				name: .numericFieldDidBeginEditing,
 				object: self.superview
 			)
-		}
+//		}
 	}
 	
 	func stopBlinking() {
 		layer.removeAllAnimations()
 		alpha = 0
+		print("stopBlinking called on cursor with superview = \(String(describing: superview))")
 	}
 	
 	/// Repositions the cursor inside `field` so it sits exactly where
