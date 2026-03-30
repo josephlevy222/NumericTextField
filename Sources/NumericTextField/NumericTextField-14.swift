@@ -366,16 +366,14 @@ private class KeyboardContainerView: UIView {
 //}
 private class BlinkingCursorView: UIView {
 	private var observerToken: NSObjectProtocol?
+	weak var field: UITextField?   // set by makeUIView
 	
 	override func didMoveToWindow() {
 		super.didMoveToWindow()
-		// Remove any existing observer before adding a new one —
-		// didMoveToWindow can fire multiple times as SwiftUI rebuilds
 		if let token = observerToken {
 			NotificationCenter.default.removeObserver(token)
 			observerToken = nil
 		}
-		// Only subscribe when actually in a window
 		guard window != nil else { return }
 		observerToken = NotificationCenter.default.addObserver(
 			forName: .numericFieldDidBeginEditing,
@@ -383,10 +381,8 @@ private class BlinkingCursorView: UIView {
 			queue: .main
 		) { [weak self] notification in
 			guard let self else { return }
-			let postingField = notification.object as? UIView
-			print("observer fired: postingField = \(String(describing: postingField)), my superview = \(String(describing: self.superview))")
-			guard let postingField else { return }
-			if postingField !== self.superview {
+			guard let activeField = notification.object as? UITextField else { return }
+			if activeField !== self.field {
 				self.stopBlinking()
 			}
 		}
@@ -407,20 +403,12 @@ private class BlinkingCursorView: UIView {
 			options: [.repeat, .autoreverse, .allowUserInteraction],
 			animations: { self.alpha = 0 }
 		)
-		print("startBlinking posting: superview = \(String(describing: superview))")
-//		DispatchQueue.main.async { [weak self] in
-//			guard let self else { return }
-			NotificationCenter.default.post(
-				name: .numericFieldDidBeginEditing,
-				object: self.superview
-			)
-//		}
+		// No notification here — Coordinator posts it
 	}
 	
 	func stopBlinking() {
 		layer.removeAllAnimations()
 		alpha = 0
-		print("stopBlinking called on cursor with superview = \(String(describing: superview))")
 	}
 	
 	/// Repositions the cursor inside `field` so it sits exactly where
@@ -455,6 +443,7 @@ private class BlinkingCursorView: UIView {
 		frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
 	}
 }
+
 // MARK: - UITextField subclass to catch layout changes
 
 private class NumericUITextFieldView: UITextField {
@@ -495,6 +484,7 @@ private struct NumericUITextField: UIViewRepresentable {
         cursor.backgroundColor = .systemBlue
         cursor.layer.cornerRadius = 1
         cursor.alpha = 0
+		cursor.field = field
         field.addSubview(cursor)
         coord.cursorView = cursor
 
@@ -579,12 +569,17 @@ private struct NumericUITextField: UIViewRepresentable {
             self.bridge = NumericTextBridge(parent.text, style: parent.style)
         }
 
-        func textFieldDidBeginEditing(_ textField: UITextField) {
-            cursorView?.reposition(in: textField)
-            cursorView?.startBlinking()   // also posts notification to stop all others
-            parent.onFocusChange(true)
-        }
-
+		func textFieldDidBeginEditing(_ textField: UITextField) {
+			cursorView?.reposition(in: textField)
+			cursorView?.startBlinking()
+			// Post after startBlinking so all OTHER cursors stop
+			NotificationCenter.default.post(
+				name: .numericFieldDidBeginEditing,
+				object: textField   // use the field, not the cursor's superview
+			)// End of post code
+			parent.onFocusChange(true)
+		}
+		
         func textFieldDidEndEditing(_ textField: UITextField) {
             cursorView?.stopBlinking()
             parent.text = bridge.text
