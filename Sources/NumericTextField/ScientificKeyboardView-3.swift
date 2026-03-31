@@ -1,6 +1,5 @@
 // ScientificKeyboardView.swift
 // iOS only
-#if false
 #if os(iOS)
 import SwiftUI
 
@@ -16,7 +15,8 @@ private struct KeyDef: Identifiable {
     var wide: Bool = false
 }
 
-private let layout: [[KeyDef]] = [
+// iPhone / iPad portrait — 4 rows
+private let portraitLayout: [[KeyDef]] = [
     [
         KeyDef(label: "7",    value: "7",         type: .digit),
         KeyDef(label: "8",    value: "8",         type: .digit),
@@ -38,6 +38,29 @@ private let layout: [[KeyDef]] = [
     [
         KeyDef(label: "0",    value: "0",         type: .digit, wide: true),
         KeyDef(label: ".",    value: ".",         type: .special),
+        KeyDef(label: "Done", value: "done",      type: .done),
+    ],
+]
+
+// iPad landscape — 2 rows, 8 keys each, digits 1-9,0 in order
+private let landscapeLayout: [[KeyDef]] = [
+    [
+        KeyDef(label: "1",    value: "1",         type: .digit),
+        KeyDef(label: "2",    value: "2",         type: .digit),
+        KeyDef(label: "3",    value: "3",         type: .digit),
+        KeyDef(label: "4",    value: "4",         type: .digit),
+        KeyDef(label: "5",    value: "5",         type: .digit),
+        KeyDef(label: ".",    value: ".",         type: .special),
+        KeyDef(label: "E",    value: "E",         type: .special),
+        KeyDef(label: "⌫",   value: "backspace", type: .action),
+    ],
+    [
+        KeyDef(label: "6",    value: "6",         type: .digit),
+        KeyDef(label: "7",    value: "7",         type: .digit),
+        KeyDef(label: "8",    value: "8",         type: .digit),
+        KeyDef(label: "9",    value: "9",         type: .digit),
+        KeyDef(label: "0",    value: "0",         type: .digit),
+        KeyDef(label: "−",   value: "-",         type: .special),
         KeyDef(label: "Done", value: "done",      type: .done),
     ],
 ]
@@ -146,20 +169,26 @@ struct ScientificKeyboardView: View {
     var style: NumericStringStyle = .defaultStyle
     let onDone: (String) -> Void
 
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
+    // iPad (.regular) uses the compact 2-row landscape layout.
+    // iPhone (.compact) uses the standard 4-row portrait layout.
+    private var activeLayout: [[KeyDef]] {
+        hSizeClass == .regular ? landscapeLayout : portraitLayout
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             Divider().overlay(Color(white: 0.18))
 
             VStack(spacing: 10) {
-                ForEach(0..<layout.count, id: \.self) { row in
+                ForEach(0..<activeLayout.count, id: \.self) { row in
                     HStack(spacing: 10) {
-                        ForEach(layout[row]) { key in
+                        ForEach(activeLayout[row]) { key in
                             NumericKey(key: key, disabled: isDisabled(key)) {
                                 handleKey(key)
                             }
                             .frame(maxWidth: .infinity)
-                            // Wide key gets 2x flex weight via GeometryReader trick —
-                            // simpler: just let all keys be equal width and make 0 span two
                             .if(key.wide) { $0.frame(minWidth: 0) }
                         }
                     }
@@ -209,5 +238,4 @@ extension View {
     ScientificKeyboardView(text: .constant("3.14E-9"), onDone: { _ in })
 }
 
-#endif
 #endif
