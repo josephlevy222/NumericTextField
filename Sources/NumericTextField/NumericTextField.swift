@@ -1,5 +1,4 @@
 // NumericTextField.swift
-//#if false
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -8,8 +7,7 @@ import EditableText   // provides UIFont(font: SwiftUI.Font)
 
 // MARK: - NumericTextField (all platforms)
 
-/// A `TextField` replacement that limits user input to numbers.
-/// On iOS: uses ScientificKeyboard instead of the system keyboard.
+/// A `TextField` replacement that limits user input to numbers. On iOS: uses ScientificKeyboard instead of the system keyboard.
 /// On macOS / other platforms: uses a standard TextField with NumericTextModifier.
 public struct NumericTextField: View {
     public init(_ title: LocalizedStringKey,
@@ -557,4 +555,3 @@ private struct NumericUITextField: UIViewRepresentable {
 
 #endif
 
-//#endif
