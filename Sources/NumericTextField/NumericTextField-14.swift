@@ -1,5 +1,5 @@
 // NumericTextField.swift
-// Used on iOS 17+ where the Observation framework is available.
+#if false// Used on iOS 17+ where the Observation framework is available.
 // On iOS 15-16 NumericTextField+iOS15.swift is used instead.
 #if canImport(Observation)
 import SwiftUI
@@ -606,3 +606,4 @@ private struct NumericUITextField: UIViewRepresentable {
 #endif
 
 #endif // canImport(Observation)
+#endif
