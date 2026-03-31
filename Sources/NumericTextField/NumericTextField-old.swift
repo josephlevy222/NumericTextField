@@ -191,16 +191,16 @@ struct NumericTextField_Previews: PreviewProvider {
                 Text(int + " is the Int")
             }
             HStack {
-                NumericTextField("Double", numericText: $double)
-                    .font(.system(size: 20, weight: .light, design: .monospaced))
-                    .textAlignment(.trailing)
-                    .frame(width: 200)
-                    .border(.foreground, width: 1)
-                    .padding()
-                Text(double + " is the double")
-            }
-        }
-    }
+				NumericTextField("Double", numericText: $double)
+					.font(.system(size: 20, weight: .light, design: .monospaced))
+					.textAlignment(.trailing)
+					.frame(width: 200)
+					.border(.foreground, width: 1)
+					.padding()
+				Text(double + " is the double")
+			}
+		}
+	}
 }
 
 // MARK: - iOS implementation
@@ -210,175 +210,202 @@ struct NumericTextField_Previews: PreviewProvider {
 // MARK: - iOS SwiftUI wrapper
 
 private struct NumericFieldiOS: View {
-    let label: LocalizedStringKey
-    @Binding var text: String
-    var style: NumericStringStyle
-    @Binding var isFocused: Bool
-    var font: UIFont?
-    var textAlignment: NSTextAlignment
-    var onDone: (String) -> Void
-    var onFocusChange: (Bool) -> Void
-
-    @ScaledMetric private var scaledSize: CGFloat = 17
-
-    init(_ label: LocalizedStringKey,
-         text: Binding<String>,
-         style: NumericStringStyle = .defaultStyle,
-         isFocused: Binding<Bool> = .constant(false),
-         font: UIFont? = nil,
-         textAlignment: NSTextAlignment = .natural,
-         onDone: @escaping (String) -> Void = { _ in },
-         onFocusChange: @escaping (Bool) -> Void = { _ in }) {
-        self.label = label
-        self._text = text
-        self.style = style
-        self._isFocused = isFocused
-        self.font = font
-        self.textAlignment = textAlignment
-        self.onDone = onDone
-        self.onFocusChange = onFocusChange
-    }
-
-    private var resolvedFont: UIFont {
-        font ?? .monospacedSystemFont(ofSize: scaledSize, weight: .regular)
-    }
-
-    var body: some View {
-        let placeholderAlignment: Alignment = textAlignment == .right  ? .trailing
-                                            : textAlignment == .center ? .center
-                                            : .leading
-        ZStack(alignment: placeholderAlignment) {
-            if text.isEmpty {
-                Text(label)
-                    .font(.system(size: resolvedFont.pointSize))
-                    .foregroundStyle(Color(.placeholderText))
-                    .frame(maxWidth: .infinity, alignment: placeholderAlignment)
-                    .allowsHitTesting(false)
-            }
-
-            NumericUITextField(
-                text: $text,
-                isFocused: $isFocused,
-                font: resolvedFont,
-                style: style,
-                textAlignment: textAlignment,
-                onDone: onDone,
-                onFocusChange: onFocusChange
-            )
-            .frame(height: resolvedFont.pointSize * 1.6)
-        }
-        .onChange(of: text) { _, newValue in
-            let filtered = newValue.numericValue(style: style).uppercased()
-            if filtered != newValue { text = filtered }
-        }
-    }
+	let label: LocalizedStringKey
+	@Binding var text: String
+	var style: NumericStringStyle
+	@Binding var isFocused: Bool
+	var font: UIFont?
+	var textAlignment: NSTextAlignment
+	var onDone: (String) -> Void
+	var onFocusChange: (Bool) -> Void
+	
+	@ScaledMetric private var scaledSize: CGFloat = 17
+	
+	init(_ label: LocalizedStringKey,
+		 text: Binding<String>,
+		 style: NumericStringStyle = .defaultStyle,
+		 isFocused: Binding<Bool> = .constant(false),
+		 font: UIFont? = nil,
+		 textAlignment: NSTextAlignment = .natural,
+		 onDone: @escaping (String) -> Void = { _ in },
+		 onFocusChange: @escaping (Bool) -> Void = { _ in }) {
+		self.label = label
+		self._text = text
+		self.style = style
+		self._isFocused = isFocused
+		self.font = font
+		self.textAlignment = textAlignment
+		self.onDone = onDone
+		self.onFocusChange = onFocusChange
+	}
+	
+	private var resolvedFont: UIFont {
+		font ?? .monospacedSystemFont(ofSize: scaledSize, weight: .regular)
+	}
+	
+	var body: some View {
+		let placeholderAlignment: Alignment = textAlignment == .right  ? .trailing
+		: textAlignment == .center ? .center
+		: .leading
+		ZStack(alignment: placeholderAlignment) {
+			if text.isEmpty {
+				Text(label)
+					.font(.system(size: resolvedFont.pointSize))
+					.foregroundStyle(Color(.placeholderText))
+					.frame(maxWidth: .infinity, alignment: placeholderAlignment)
+					.allowsHitTesting(false)
+			}
+			
+			NumericUITextField(
+				text: $text,
+				isFocused: $isFocused,
+				font: resolvedFont,
+				style: style,
+				textAlignment: textAlignment,
+				onDone: onDone,
+				onFocusChange: onFocusChange
+			)
+			.frame(height: resolvedFont.pointSize * 1.6)
+		}
+		.onChange(of: text) { _, newValue in
+			let filtered = newValue.numericValue(style: style).uppercased()
+			if filtered != newValue { text = filtered }
+		}
+	}
 }
 
 // MARK: - Text bridge
 
 @Observable
 private final class NumericTextBridge {
-    var text: String
-    var style: NumericStringStyle
-    var onChange: (String) -> Void = { _ in }
-
-    init(_ initial: String, style: NumericStringStyle) {
-        self.text = initial
-        self.style = style
-    }
+	var text: String
+	var style: NumericStringStyle
+	var onChange: (String) -> Void = { _ in }
+	
+	init(_ initial: String, style: NumericStringStyle) {
+		self.text = initial
+		self.style = style
+	}
 }
 
 // MARK: - Keyboard host view
 
 private struct KeyboardHost: View {
-    var bridge: NumericTextBridge
-    var onDone: (String) -> Void
-
-    var body: some View {
-        @Bindable var bridge = bridge
-        ScientificKeyboardView(text: $bridge.text, style: bridge.style, onDone: onDone)
-            .onChange(of: bridge.text) { _, newValue in
-                bridge.onChange(newValue)
-            }
-    }
+	var bridge: NumericTextBridge
+	var onDone: (String) -> Void
+	
+	var body: some View {
+		@Bindable var bridge = bridge
+		ScientificKeyboardView(text: $bridge.text, style: bridge.style, onDone: onDone)
+			.onChange(of: bridge.text) { _, newValue in
+				bridge.onChange(newValue)
+			}
+	}
 }
 
 // MARK: - Keyboard container view
 
 private class KeyboardContainerView: UIView {
-    var preferredHeight: CGFloat = 260 {
-        didSet { invalidateIntrinsicContentSize() }
-    }
-    override var intrinsicContentSize: CGSize {
-        CGSize(width: UIView.noIntrinsicMetric, height: preferredHeight)
-    }
+	var preferredHeight: CGFloat = 260 {
+		didSet { invalidateIntrinsicContentSize() }
+	}
+	override var intrinsicContentSize: CGSize {
+		CGSize(width: UIView.noIntrinsicMetric, height: preferredHeight)
+	}
 }
 
 // MARK: - Blinking cursor view
 
+//private class BlinkingCursorView: UIView {
+//
+//    func startBlinking() {
+//        layer.removeAllAnimations()
+//        alpha = 1
+//        UIView.animate(
+//            withDuration: 0.5,
+//            delay: 0,
+//            options: [.repeat, .autoreverse, .allowUserInteraction],
+//            animations: { self.alpha = 0 }
+//        )
+//    }
+//
+//    func stopBlinking() {
+//        layer.removeAllAnimations()
+//        alpha = 0
+//    }
 private class BlinkingCursorView: UIView {
-
-    func startBlinking() {
-        layer.removeAllAnimations()
-        alpha = 1
-        UIView.animate(
-            withDuration: 0.5,
-            delay: 0,
-            options: [.repeat, .autoreverse, .allowUserInteraction],
-            animations: { self.alpha = 0 }
-        )
-    }
-
-    func stopBlinking() {
-        layer.removeAllAnimations()
-        alpha = 0
-    }
-
-    /// Repositions the cursor inside `field` so it sits exactly where
-    /// the next keystroke will appear, respecting alignment and current text.
-    func reposition(in field: UITextField) {
-        guard let font = field.font else { return }
-        let text = field.text ?? ""
-        let fieldWidth = field.bounds.width
-        let fieldHeight = field.bounds.height
-        guard fieldWidth > 0 else { return }    // bounds not yet set
-
-        let cursorHeight = font.lineHeight * 1.1
-        let cursorY = (fieldHeight - cursorHeight) / 2
-
-        let textWidth: CGFloat = text.isEmpty
-            ? 0
-            : (text as NSString).size(withAttributes: [.font: font]).width
-
-        let cursorX: CGFloat
-        switch field.textAlignment {
-        case .right:
-            cursorX = text.isEmpty
-                ? fieldWidth
-                : max(0, fieldWidth - textWidth)
-
-        case .center:
-            let textStart = (fieldWidth - textWidth) / 2
-            cursorX = text.isEmpty
-                ? fieldWidth / 2
-                : min(textStart + textWidth, fieldWidth)
-
-        default: // .left, .natural
-            cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
-        }
-
-        frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
-    }
+	func startBlinking() {
+		self.isHidden = false // Ensure it's visible
+		layer.removeAllAnimations()
+		alpha = 1
+		UIView.animate(
+			withDuration: 0.5,
+			delay: 0,
+			options: [.repeat, .autoreverse, .allowUserInteraction],
+			animations: { self.alpha = 0 }
+		)
+	}
+	
+	func stopBlinking() {
+		layer.removeAllAnimations()
+		alpha = 0
+		isHidden = true // Strictly hide the view
+	}
+	
+	func reposition(in field: UITextField) {
+		// Only reposition if we are actually the first responder
+		guard field.isFirstResponder else {
+			stopBlinking()
+			return
+		}
+		
+		/// Repositions the cursor inside `field` so it sits exactly where
+		/// the next keystroke will appear, respecting alignment and current text.
+		guard let font = field.font else { return }
+		let text = field.text ?? ""
+		let fieldWidth = field.bounds.width
+		let fieldHeight = field.bounds.height
+		guard fieldWidth > 0 else { return }    // bounds not yet set
+		
+		let cursorHeight = font.lineHeight * 1.1
+		let cursorY = (fieldHeight - cursorHeight) / 2
+		
+		let textWidth: CGFloat = text.isEmpty
+		? 0
+		: (text as NSString).size(withAttributes: [.font: font]).width
+		
+		let cursorX: CGFloat
+		switch field.textAlignment {
+		case .right:
+			cursorX = text.isEmpty
+			? fieldWidth
+			: max(0, fieldWidth - textWidth)
+			
+		case .center:
+			let textStart = (fieldWidth - textWidth) / 2
+			cursorX = text.isEmpty
+			? fieldWidth / 2
+			: min(textStart + textWidth, fieldWidth)
+			
+		default: // .left, .natural
+			cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
+		}
+		
+		frame = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
+		
+		// Ensure visibility is correct at the end of repositioning
+		self.isHidden = false
+	}
 }
 
 // MARK: - UITextField subclass to catch layout changes
 
 private class NumericUITextFieldView: UITextField {
-    var onLayout: (() -> Void)?
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        onLayout?()
-    }
+	var onLayout: (() -> Void)?
+	override func layoutSubviews() {
+		super.layoutSubviews()
+		onLayout?()
+	}
 }
 
 // MARK: - UIViewRepresentable
