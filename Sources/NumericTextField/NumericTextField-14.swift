@@ -482,7 +482,8 @@ private struct NumericUITextField: UIViewRepresentable {
         field.tintColor = .clear
         field.autocorrectionType = .no
         field.spellCheckingType = .no
-
+		// Remove any existing cursor subviews from a previous makeUIView call
+		field.subviews.filter { $0 is BlinkingCursorView }.forEach { $0.removeFromSuperview() }
         let cursor = BlinkingCursorView()
         cursor.backgroundColor = .systemBlue
         cursor.layer.cornerRadius = 1
@@ -543,6 +544,12 @@ private struct NumericUITextField: UIViewRepresentable {
 
     func updateUIView(_ field: NumericUITextFieldView, context: Context) {
         let coord = context.coordinator
+		// Remove any orphaned cursor subviews that aren't the current one
+		for subview in field.subviews where subview is BlinkingCursorView {
+			if subview !== coord.cursorView {
+				subview.removeFromSuperview()
+			}
+		}
         if field.text != text {
             field.text = text
             coord.bridge.text = text
