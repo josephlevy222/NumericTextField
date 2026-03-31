@@ -45,24 +45,31 @@ private let portraitLayout: [[KeyDef]] = [
 // iPad landscape — 2 rows, 8 keys each, digits 1-9,0 in order
 private let landscapeLayout: [[KeyDef]] = [
     [
-        KeyDef(label: "1",    value: "1",         type: .digit),
-        KeyDef(label: "2",    value: "2",         type: .digit),
-        KeyDef(label: "3",    value: "3",         type: .digit),
-        KeyDef(label: "4",    value: "4",         type: .digit),
-        KeyDef(label: "5",    value: "5",         type: .digit),
-        KeyDef(label: ".",    value: ".",         type: .special),
+		KeyDef(label: "1",    value: "1",         type: .digit),
+		KeyDef(label: "2",    value: "2",         type: .digit),
+		KeyDef(label: "3",    value: "3",         type: .digit),
+		KeyDef(label: "4",    value: "4",         type: .digit),
+		KeyDef(label: "5",    value: "5",         type: .digit),
+		KeyDef(label: "6",    value: "6",         type: .digit),
+		KeyDef(label: "7",    value: "7",         type: .digit),
+		KeyDef(label: "8",    value: "8",         type: .digit),
+		KeyDef(label: "9",    value: "9",         type: .digit),
+		KeyDef(label: "0",    value: "0",         type: .digit),
+		KeyDef(label: ".",   value: "-",         type: .special),
+		KeyDef(label: "-",    value: ".",         type: .special),
         KeyDef(label: "E",    value: "E",         type: .special),
         KeyDef(label: "⌫",   value: "backspace", type: .action),
+		KeyDef(label: "Done", value: "done",      type: .done),
     ],
-    [
-        KeyDef(label: "6",    value: "6",         type: .digit),
-        KeyDef(label: "7",    value: "7",         type: .digit),
-        KeyDef(label: "8",    value: "8",         type: .digit),
-        KeyDef(label: "9",    value: "9",         type: .digit),
-        KeyDef(label: "0",    value: "0",         type: .digit),
-        KeyDef(label: "−",   value: "-",         type: .special),
-        KeyDef(label: "Done", value: "done",      type: .done),
-    ],
+//    [
+//        KeyDef(label: "6",    value: "6",         type: .digit),
+//        KeyDef(label: "7",    value: "7",         type: .digit),
+//        KeyDef(label: "8",    value: "8",         type: .digit),
+//        KeyDef(label: "9",    value: "9",         type: .digit),
+//        KeyDef(label: "0",    value: "0",         type: .digit),
+//        KeyDef(label: "−",   value: "-",         type: .special),
+//        KeyDef(label: "Done", value: "done",      type: .done),
+//    ],
 ]
 
 // MARK: - Key view
