@@ -1,6 +1,6 @@
 // ScientificKeyboardView.swift
 // iOS only
-#if os(iOS)
+#if false // os(iOS)
 import SwiftUI
 
 // MARK: - Key model

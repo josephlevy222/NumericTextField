@@ -1,6 +1,5 @@
-// ScientificKeyboardView.swift
+// ScientificKeyboardView-4.swift
 // iOS only
-#if false
 #if os(iOS)
 import SwiftUI
 
@@ -16,37 +15,93 @@ private struct KeyDef: Identifiable {
     var wide: Bool = false
 }
 
-private let layout: [[KeyDef]] = [
-    [
-        KeyDef(label: "7",    value: "7",         type: .digit),
-        KeyDef(label: "8",    value: "8",         type: .digit),
-        KeyDef(label: "9",    value: "9",         type: .digit),
-        KeyDef(label: "⌫",   value: "backspace", type: .action),
-    ],
-    [
-        KeyDef(label: "4",    value: "4",         type: .digit),
-        KeyDef(label: "5",    value: "5",         type: .digit),
-        KeyDef(label: "6",    value: "6",         type: .digit),
-        KeyDef(label: "−",   value: "-",         type: .special),
-    ],
-    [
-        KeyDef(label: "1",    value: "1",         type: .digit),
-        KeyDef(label: "2",    value: "2",         type: .digit),
-        KeyDef(label: "3",    value: "3",         type: .digit),
-        KeyDef(label: "E",    value: "E",         type: .special),
-    ],
-    [
-        KeyDef(label: "0",    value: "0",         type: .digit, wide: true),
-        KeyDef(label: ".",    value: ".",         type: .special),
-        KeyDef(label: "Done", value: "done",      type: .done),
-    ],
-]
+// MARK: - Style-driven policy
+
+private struct KeyboardPolicy {
+    let allowDecimal: Bool
+    let allowExponent: Bool
+    let allowNegatives: Bool
+    let decimalSeparatorLabel: String
+    let decimalSeparatorValue: String
+
+    init(style: NumericStringStyle) {
+        self.allowDecimal = style.decimalSeparator
+        self.allowExponent = style.exponent
+        self.allowNegatives = style.negatives
+
+        let sep = Locale.current.decimalSeparator ?? "."
+        self.decimalSeparatorLabel = sep
+        self.decimalSeparatorValue = sep
+    }
+}
+
+// MARK: - Layout builders (generated from style)
+
+private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
+    let row1: [KeyDef] = [
+        KeyDef(label: "7", value: "7", type: .digit),
+        KeyDef(label: "8", value: "8", type: .digit),
+        KeyDef(label: "9", value: "9", type: .digit),
+        KeyDef(label: "⌫", value: "backspace", type: .action),
+    ]
+
+    let row2: [KeyDef] = [
+        KeyDef(label: "4", value: "4", type: .digit),
+        KeyDef(label: "5", value: "5", type: .digit),
+        KeyDef(label: "6", value: "6", type: .digit),
+        policy.allowNegatives ? KeyDef(label: "−", value: "-", type: .special) : nil,
+    ].compactMap { $0 }
+
+    let row3: [KeyDef] = [
+        KeyDef(label: "1", value: "1", type: .digit),
+        KeyDef(label: "2", value: "2", type: .digit),
+        KeyDef(label: "3", value: "3", type: .digit),
+        policy.allowExponent ? KeyDef(label: "E", value: "E", type: .special) : nil,
+    ].compactMap { $0 }
+
+    let row4: [KeyDef] = [
+        KeyDef(label: "0", value: "0", type: .digit, wide: true),
+        policy.allowDecimal ? KeyDef(label: policy.decimalSeparatorLabel, value: policy.decimalSeparatorValue, type: .special) : nil,
+        KeyDef(label: "Done", value: "done", type: .done),
+    ].compactMap { $0 }
+
+    return [row1, row2, row3, row4]
+}
+
+private func makeLandscapeLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
+    var row: [KeyDef] = [
+        KeyDef(label: "1", value: "1", type: .digit),
+        KeyDef(label: "2", value: "2", type: .digit),
+        KeyDef(label: "3", value: "3", type: .digit),
+        KeyDef(label: "4", value: "4", type: .digit),
+        KeyDef(label: "5", value: "5", type: .digit),
+        KeyDef(label: "6", value: "6", type: .digit),
+        KeyDef(label: "7", value: "7", type: .digit),
+        KeyDef(label: "8", value: "8", type: .digit),
+        KeyDef(label: "9", value: "9", type: .digit),
+        KeyDef(label: "0", value: "0", type: .digit),
+    ]
+
+    if policy.allowDecimal {
+        row.append(KeyDef(label: policy.decimalSeparatorLabel, value: policy.decimalSeparatorValue, type: .special))
+    }
+    if policy.allowNegatives {
+        row.append(KeyDef(label: "−", value: "-", type: .special))
+    }
+    if policy.allowExponent {
+        row.append(KeyDef(label: "E", value: "E", type: .special))
+    }
+
+    row.append(KeyDef(label: "⌫", value: "backspace", type: .action))
+    row.append(KeyDef(label: "Done", value: "done", type: .done))
+
+    return [row]
+}
 
 // MARK: - Key view
 
 private struct NumericKey: View {
     let key: KeyDef
-    let disabled: Bool
     let onTap: () -> Void
 
     @State private var pressed = false
@@ -59,22 +114,20 @@ private struct NumericKey: View {
             }
             .frame(height: 54)
             .scaleEffect(pressed ? 0.94 : 1.0)
-            .opacity(disabled ? 0.3 : 1.0)
             .animation(.easeOut(duration: 0.08), value: pressed)
         }
         .buttonStyle(.plain)
-        .disabled(disabled)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    if !pressed && !disabled {
+                    if !pressed {
                         pressed = true
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     }
                 }
                 .onEnded { _ in
                     pressed = false
-                    if !disabled { onTap() }
+                    onTap()
                 }
         )
     }
@@ -141,25 +194,33 @@ private struct NumericKey: View {
 
 // MARK: - Keyboard view
 
-struct ScientificKeyboardView: View {
+struct ScientificKeyboardView4: View {
     @Binding var text: String
     var style: NumericStringStyle = .defaultStyle
     let onDone: (String) -> Void
+
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
+    private var policy: KeyboardPolicy { KeyboardPolicy(style: style) }
+
+    private var activeLayout: [[KeyDef]] {
+        hSizeClass == .regular
+            ? makeLandscapeLayout(policy: policy)
+            : makePortraitLayout(policy: policy)
+    }
 
     var body: some View {
         VStack(spacing: 10) {
             Divider().overlay(Color(white: 0.18))
 
             VStack(spacing: 10) {
-                ForEach(0..<layout.count, id: \.self) { row in
+                ForEach(0..<activeLayout.count, id: \.self) { row in
                     HStack(spacing: 10) {
-                        ForEach(layout[row]) { key in
-                            NumericKey(key: key, disabled: isDisabled(key)) {
+                        ForEach(activeLayout[row]) { key in
+                            NumericKey(key: key) {
                                 handleKey(key)
                             }
                             .frame(maxWidth: .infinity)
-                            // Wide key gets 2x flex weight via GeometryReader trick —
-                            // simpler: just let all keys be equal width and make 0 span two
                             .if(key.wide) { $0.frame(minWidth: 0) }
                         }
                     }
@@ -181,19 +242,12 @@ struct ScientificKeyboardView: View {
             onDone(text.isEmpty ? "0" : text)
             return
         }
+
         let candidate = key.value == "backspace"
             ? String(text.dropLast())
             : text + key.value
-        text = candidate.numericValue(style: style).uppercased()
-    }
 
-    private func isDisabled(_ key: KeyDef) -> Bool {
-        switch key.value {
-        case ".": return !style.decimalSeparator
-        case "E": return !style.exponent
-        case "-": return !style.negatives
-        default:  return false
-        }
+        text = candidate.numericValue(style: style).uppercased()
     }
 }
 
@@ -205,9 +259,9 @@ extension View {
 }
 
 // MARK: - Preview
+
 #Preview {
-    ScientificKeyboardView(text: .constant("3.14E-9"), onDone: { _ in })
+    ScientificKeyboardView4(text: .constant("3.14E-9"), onDone: { _ in })
 }
 
-#endif
 #endif
