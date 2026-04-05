@@ -194,7 +194,7 @@ private struct NumericKey: View {
 
 // MARK: - Keyboard view
 
-struct ScientificKeyboardView4: View {
+struct ScientificKeyboardView: View {
     @Binding var text: String
     var style: NumericStringStyle = .defaultStyle
     let onDone: (String) -> Void
@@ -261,7 +261,7 @@ extension View {
 // MARK: - Preview
 
 #Preview {
-    ScientificKeyboardView4(text: .constant("3.14E-9"), onDone: { _ in })
+    ScientificKeyboardView(text: .constant("3.14E-9"), onDone: { _ in })
 }
 
 #endif
