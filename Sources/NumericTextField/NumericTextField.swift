@@ -7,7 +7,7 @@ import EditableText   // provides UIFont(font: SwiftUI.Font)
 
 // MARK: - NumericTextField (all platforms)
 
-/// A `TextField` replacement that limits user input to numbers. On iOS: uses ScientificKeyboard instead of the system keyboard.
+/// A `TextField` replacement that limits user input to numbers. On iOS: uses NumercKeyboard instead of the system keyboard.
 /// On macOS / other platforms: uses a standard TextField with NumericTextModifier.
 public struct NumericTextField: View {
     public init(_ title: LocalizedStringKey,
@@ -294,7 +294,7 @@ private struct KeyboardHost: View {
 	
 	var body: some View {
 		@Bindable var bridge = bridge
-		ScientificKeyboardView(text: $bridge.text, style: bridge.style, onDone: onDone)
+		NumericKeyboardView(text: $bridge.text, style: bridge.style, onDone: onDone)
 			.onChange(of: bridge.text) { _, newValue in
 				bridge.onChange(newValue)
 			}
@@ -312,25 +312,6 @@ private class KeyboardContainerView: UIView {
 	}
 }
 
-// MARK: - Blinking cursor view
-
-//private class BlinkingCursorView: UIView {
-//
-//    func startBlinking() {
-//        layer.removeAllAnimations()
-//        alpha = 1
-//        UIView.animate(
-//            withDuration: 0.5,
-//            delay: 0,
-//            options: [.repeat, .autoreverse, .allowUserInteraction],
-//            animations: { self.alpha = 0 }
-//        )
-//    }
-//
-//    func stopBlinking() {
-//        layer.removeAllAnimations()
-//        alpha = 0
-//    }
 private class BlinkingCursorView: UIView {
 	func startBlinking() {
 		self.isHidden = false // Ensure it's visible
