@@ -62,7 +62,7 @@ private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 
     // Row 3 trailing key: E if allowed and minus already placed (or minus not allowed),
     // else decimal if not yet placed, else blank
-	let row3key: KeyDef = policy.allowExponent && !policy.allowNegatives ? exponent
+	let row3key: KeyDef = policy.allowExponent && policy.allowNegatives ? exponent
                         : policy.allowDecimal && !policy.allowNegatives ? policy.decimalKey
                         : blankKey
 
