@@ -223,7 +223,8 @@ struct NumericKeyboardView: View {
     @Binding var text: String
     var style: NumericStringStyle = .defaultStyle
     let onDone: (String) -> Void
-
+	var onHeightChange: ((CGFloat) -> Void)? = nil
+	
     @Environment(\.horizontalSizeClass) private var hSizeClass
 
     private var policy: KeyboardPolicy { KeyboardPolicy(style: style) }
@@ -260,6 +261,13 @@ struct NumericKeyboardView: View {
                 .padding(.bottom, 8)
         }
         .background(Color(red: 0.11, green: 0.13, blue: 0.19))
+		.background(GeometryReader { geo in   
+			Color.clear.onAppear {
+				onHeightChange?(geo.size.height)
+			}.onChange(of: geo.size.height) { _, h in
+				onHeightChange?(h)
+			}
+		})
     }
 
     private func handleKey(_ key: KeyDef) {

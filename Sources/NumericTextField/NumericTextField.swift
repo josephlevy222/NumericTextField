@@ -291,16 +291,21 @@ private final class NumericTextBridge {
 private struct KeyboardHost: View {
 	var bridge: NumericTextBridge
 	var onDone: (String) -> Void
+	var onHeightChange: ((CGFloat) -> Void)? = nil
 	
 	var body: some View {
 		@Bindable var bridge = bridge
-		NumericKeyboardView(text: $bridge.text, style: bridge.style, onDone: onDone)
-			.onChange(of: bridge.text) { _, newValue in
-				bridge.onChange(newValue)
-			}
+		NumericKeyboardView(
+			text: $bridge.text,
+			style: bridge.style,
+			onDone: onDone,
+			onHeightChange: onHeightChange
+		)
+		.onChange(of: bridge.text) { _, newValue in
+			bridge.onChange(newValue)
+		}
 	}
 }
-
 // MARK: - Keyboard container view
 
 private class KeyboardContainerView: UIView {
@@ -439,22 +444,25 @@ private struct NumericUITextField: UIViewRepresentable {
         }
 
         // Build and attach the custom keyboard
-        let host = UIHostingController(rootView: KeyboardHost(
-            bridge: coord.bridge,
-            onDone: { value in
-                coord.parent.onDone(value)
-                field.resignFirstResponder()
-            }
-        ))
+		let container = KeyboardContainerView()
+		container.translatesAutoresizingMaskIntoConstraints = false
+		
+		let host = UIHostingController(rootView: KeyboardHost(
+			bridge: coord.bridge,
+			onDone: { value in
+				coord.parent.onDone(value)
+				field.resignFirstResponder()
+			},
+			onHeightChange: { [weak container] height in
+				container?.preferredHeight = height
+			}
+		))
+       
+		let targetHeight = host.view.systemLayoutSizeFitting(
+			CGSize(width: UIScreen.main.bounds.width, height: UIView.layoutFittingCompressedSize.height)
+		).height
+		container.preferredHeight = targetHeight
 
-        let targetHeight = host.view.systemLayoutSizeFitting(
-            CGSize(width: UIScreen.main.bounds.width,
-                   height: UIView.layoutFittingCompressedSize.height)
-        ).height
-
-        let container = KeyboardContainerView()
-        container.preferredHeight = targetHeight
-        container.translatesAutoresizingMaskIntoConstraints = false
         host.view.translatesAutoresizingMaskIntoConstraints = false
         host.view.backgroundColor = UIColor(red: 0.11, green: 0.13, blue: 0.19, alpha: 1)
         container.backgroundColor = host.view.backgroundColor
