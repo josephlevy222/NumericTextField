@@ -87,9 +87,7 @@ extension String {
 		}
 		return String(filteredChars)
 	}
-}
 
-extension String {
 	func toDecimal() -> Decimal? {
 		// Decimal(string:locale:) handles commas vs dots automatically based on the user's region
 		Decimal(string: self, locale: .current)
