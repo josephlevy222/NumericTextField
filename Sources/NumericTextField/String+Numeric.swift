@@ -14,7 +14,7 @@ extension Decimal {
 }
 
 extension String {
-	
+
 	/// Determines if the current string is a valid representation based on style.
 	public func isValid(style: NumericStringStyle) -> Bool {
 		if self.isEmpty || self == "-" || self == "." || self == "," { return true }
@@ -27,20 +27,49 @@ extension String {
 		
 		guard let decimal = self.toDecimal() else { return false }
 		
-		// Flag non-integers if decimals are disabled
-		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
-		
-		// Check Range (Flag if outside, don't clamp)
-		// NSDecimalNumber is the correct bridge; Decimal can exceed Double's range,
-		// in which case doubleValue returns ±infinity — treat that as out-of-range.
-		if let range = style.range {
+		if style.decimalSeparator {
+			// If decimals are allowed, require the value to be representable as a finite Double.
 			let dValue = NSDecimalNumber(decimal: decimal).doubleValue
 			guard dValue.isFinite else { return false }
-			return range.contains(dValue)
+			
+			// If a range is provided, also require the Double to be within that range.
+			if let range = style.range {
+				return range.contains(dValue)
+			}
+			
+			return true
+		} else {
+			// Integer-only: must be whole, and must fit in Int exactly.
+			guard decimal.isWholeNumber else { return false }
+			return decimal >= Decimal(Int.min) && decimal <= Decimal(Int.max)
 		}
-		
-		return true
 	}
+//	/// Determines if the current string is a valid representation based on style.
+//	public func isValid(style: NumericStringStyle) -> Bool {
+//		if self.isEmpty || self == "-" || self == "." || self == "," { return true }
+//		let upper = self.uppercased()
+//		
+//		// Allow partial scientific notation if the style allows exponents
+//		if upper.hasSuffix("E") || upper.hasSuffix("E-") {
+//			return style.exponent
+//		}
+//		
+//		guard let decimal = self.toDecimal() else { return false }
+//		
+//		// Flag non-integers if decimals are disabled
+//		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
+//		
+//		// Check Range (Flag if outside, don't clamp)
+//		// NSDecimalNumber is the correct bridge; Decimal can exceed Double's range,
+//		// in which case doubleValue returns ±infinity — treat that as out-of-range.
+//		if let range = style.range {
+//			let dValue = NSDecimalNumber(decimal: decimal).doubleValue
+//			guard dValue.isFinite else { return false }
+//			return range.contains(dValue)
+//		}
+//		
+//		return true
+//	}
 	
 	public func numericValue(style: NumericStringStyle) -> String {
 		let sep = Locale.current.decimalSeparator ?? "."
@@ -83,9 +112,7 @@ extension String {
 		}
 		return String(filteredChars)
 	}
-}
 
-extension String {
 	func toDecimal() -> Decimal? {
 		// Decimal(string:locale:) handles commas vs dots automatically based on the user's region
 		Decimal(string: self, locale: .current)
