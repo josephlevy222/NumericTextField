@@ -1,8 +1,4 @@
-//String+Numeric.swift
-import Foundation
-
 // String+Numeric.swift
-
 import Foundation
 
 extension Decimal {
@@ -86,62 +82,57 @@ extension String {
 	}
 }
 
-public var decimalNumberFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.usesSignificantDigits = true
-	formatter.numberStyle = .none
-	formatter.allowsFloats = true
-	return formatter
-}()
-
-public var scientificFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.numberStyle = .scientific
-	formatter.allowsFloats = true
-	return formatter
-}()
-
-public var integerFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.numberStyle = .none
-	formatter.allowsFloats = false
-	return formatter
-}()
-
-extension NSNumber {
-	public var scientificStyle: String {
-		return scientificFormatter.string(from: self) ?? description
-	}
-	public var decimalStyle: String {
-		return decimalNumberFormatter.string(from: self) ?? description
-	}
-	public var integerStyle: String {
-		return integerFormatter.string(from: self) ?? description
+extension String {
+	func toDecimal() -> Decimal? {
+		// Decimal(string:locale:) handles commas vs dots automatically based on the user's region
+		Decimal(string: self, locale: .current)
 	}
 }
 
+public extension String {
+	
+	func optionalNumber(formatter: NumberFormatter = NumberFormatter()) -> NSNumber? {
+		formatter.number(from: self)
+	}
+	
+	func optionalDouble(formatter: NumberFormatter = NumberFormatter()) -> Double? {
+		optionalNumber(formatter: formatter).map { Double(truncating: $0) }
+	}
+	
+	func toDouble(formatter: NumberFormatter = NumberFormatter()) -> Double {
+		optionalNumber(formatter: formatter).map { Double(truncating: $0) } ?? 0.0
+	}
+	
+	func toInt(formatter: NumberFormatter = NumberFormatter()) -> Int {
+		optionalNumber(formatter: formatter).map { Int(truncating: $0) } ?? 0
+	}
+}
+
+// MARK: - Keyboard layout (iOS custom keyboard only)
+
 #if os(iOS) && !targetEnvironment(macCatalyst)
 public enum NumericKeyboardLayout {
-	case automatic  // Switches between Portrait/Landscape based on size class
+	case automatic   // Portrait/Landscape based on size class
 	case portrait
 	case landscape
 	case compactHeight
 }
 #endif
+
+// MARK: - NumericStringStyle
+
 public struct NumericStringStyle {
 	static public var defaultStyle = NumericStringStyle()
 	static public var intStyle = NumericStringStyle(decimalSeparator: false, negatives: true, exponent: false)
-	
+
 	public var decimalSeparator: Bool
 	public var negatives: Bool
 	public var exponent: Bool
 	public var range: ClosedRange<Double>?
-#if os(iOS) && !targetEnvironment(macCatalyst) /// Only relevant for the custom iOS touch keyboard
-	public var layout: NumericKeyboardLayout
-#endif
-	
-	// MARK: - iOS Initializer
 #if os(iOS) && !targetEnvironment(macCatalyst)
+	/// Only relevant for the custom iOS touch keyboard.
+	public var layout: NumericKeyboardLayout
+
 	public init(
 		decimalSeparator: Bool = true,
 		negatives: Bool = true,
@@ -156,8 +147,6 @@ public struct NumericStringStyle {
 		self.layout = layout
 	}
 #else
-	
-	// MARK: - macOS & Catalyst Initializer
 	public init(
 		decimalSeparator: Bool = true,
 		negatives: Bool = true,
@@ -170,26 +159,4 @@ public struct NumericStringStyle {
 		self.range = range
 	}
 #endif
-}
-
-public extension String {
-	
-	func optionalNumber(formatter: NumberFormatter = NumberFormatter()) -> NSNumber? {
-		formatter.number(from: self)
-	}
-	
-	func optionalDouble(formatter: NumberFormatter = NumberFormatter()) -> Double? {
-		if let value = optionalNumber(formatter: formatter) {
-			return Double(truncating: value) } else { return nil }
-	}
-	
-	func toDouble(formatter: NumberFormatter = NumberFormatter()) -> Double {
-		if let value = optionalNumber(formatter: formatter) {
-			return Double(truncating: value) } else { return 0.0 }
-	}
-	
-	func toInt(formatter: NumberFormatter = NumberFormatter()) -> Int {
-		if let value = optionalNumber(formatter: formatter) {
-			return Int(truncating: value) } else { return 0 }
-	}
 }

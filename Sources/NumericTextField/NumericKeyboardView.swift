@@ -62,7 +62,7 @@ private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 	let eKey      = kCase == 1 ? KeyDef(label: "E", value: "E", type: .special) :  blank
 	let done      = KeyDef(label: "Done",value: "done", type: .done, wide: true)
 	
-	let decimal = policy.allowDecimal ? policy.decimalKey : (kCase == 6 ? backspace : nil)
+	let decimal = policy.allowDecimal ? policy.decimalKey : nil
 	
 	return [
 		[digit("1"), digit("2"), digit("3"), backspace].compactMap { $0 },
@@ -141,18 +141,9 @@ private struct NumericKey: View {
 	private var background: some View {
 		let r = RoundedRectangle(cornerRadius: 10, style: .continuous)
 		switch key.type {
-		case .digit,.special, .action:
-			// Adapts: Light gray in light mode, dark gray in dark mode
+		case .digit, .special, .action:
 			r.fill(Color(UIColor.tertiarySystemBackground))
 				.shadow(color: Color.black.opacity(0.15), radius: 0, x: 0, y: pressed ? 1 : 1.5)
-//		case .special:
-//			// Uses a subtle blue tint that works in both modes
-//			r.fill(Color.white)//.opacity(pressed ? 0.1 : 0.05))
-//				.overlay(r.stroke(Color.blue.opacity(pressed ? 0.1 : 0.05), lineWidth: 0.5))
-//				.shadow(color: Color.black.opacity(0.5), radius: 0, x: 0, y: pressed ? 1 : 1.5)
-//		case .action:
-//			r.fill(Color(UIColor.secondarySystemBackground))
-//				.shadow(color: Color.black.opacity(0.15), radius: 0, x: 0, y: pressed ? 1 : 1.5)
 		case .done:
 			r.fill(Color.blue)
 				.shadow(color: Color.blue.opacity(0.3), radius: 2, x: 0, y: pressed ? 1 : 2)
@@ -163,10 +154,10 @@ private struct NumericKey: View {
 	
 	private var labelColor: Color {
 		switch key.type {
-		case .digit:   .primary    // Black in light, White in dark
-		case .special: .blue       // Stays blue but adjusts shade automatically
-		case .action:  .primary    // if set to .secondary Gray in light, lighter gray in dark
-		case .done:    .white      // Always white on blue button
+		case .digit:   .primary
+		case .special: .blue
+		case .action:  .primary
+		case .done:    .white
 		case .blank:   .clear
 		}
 	}
@@ -177,10 +168,10 @@ private struct NumericKey: View {
             VStack(spacing: 1) {
                 Text("E")
                     .font(.system(size: 20, weight: .regular, design: .monospaced))
-                    .foregroundStyle(labelColor) //Color(red: 0.48, green: 0.72, blue: 0.98))
+                    .foregroundStyle(labelColor)
                 Text("×10ⁿ")
                     .font(.system(size: 8))
-                    .foregroundStyle(labelColor) //Color(red: 0.4, green: 0.55, blue: 0.75))
+                    .foregroundStyle(labelColor)
             }
         } else {
             Text(key.label)
@@ -261,13 +252,6 @@ struct NumericKeyboardView: View {
 		}
 	}
 
-}
-
-extension View {
-    @ViewBuilder
-    fileprivate func `if`<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
-        if condition { transform(self) } else { self }
-    }
 }
 
 // MARK: - Preview
