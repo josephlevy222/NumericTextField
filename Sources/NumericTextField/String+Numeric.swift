@@ -31,8 +31,11 @@ extension String {
 		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
 		
 		// Check Range (Flag if outside, don't clamp)
+		// NSDecimalNumber is the correct bridge; Decimal can exceed Double's range,
+		// in which case doubleValue returns ±infinity — treat that as out-of-range.
 		if let range = style.range {
-			let dValue = (decimal as NSNumber).doubleValue
+			let dValue = NSDecimalNumber(decimal: decimal).doubleValue
+			guard dValue.isFinite else { return false }
 			return range.contains(dValue)
 		}
 		
