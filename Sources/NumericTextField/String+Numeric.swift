@@ -98,16 +98,34 @@ public extension String {
 		formatter.number(from: self)
 	}
 	
+	/// Returns the string's value as a `Double`, or `nil` if the string is not a valid number
+	/// or if the value overflows `Double`'s finite range.
 	func optionalDouble(formatter: NumberFormatter = NumberFormatter()) -> Double? {
-		optionalNumber(formatter: formatter).map { Double(truncating: $0) }
+		if let decimal = toDecimal() {
+			let d = NSDecimalNumber(decimal: decimal).doubleValue
+			return d.isFinite ? d : nil
+		}
+		return optionalNumber(formatter: formatter).map { Double(truncating: $0) }
 	}
 	
 	func toDouble(formatter: NumberFormatter = NumberFormatter()) -> Double {
-		optionalNumber(formatter: formatter).map { Double(truncating: $0) } ?? 0.0
+		optionalDouble(formatter: formatter) ?? 0.0
+	}
+	
+	/// Returns the string's value as an `Int`, or `nil` if the string is not a valid whole number
+	/// or if the value overflows `Int`'s range.
+	func optionalInt(formatter: NumberFormatter = NumberFormatter()) -> Int? {
+		if let decimal = toDecimal() {
+			guard decimal.isWholeNumber else { return nil }
+			let d = NSDecimalNumber(decimal: decimal).doubleValue
+			guard d.isFinite, d >= Double(Int.min), d <= Double(Int.max) else { return nil }
+			return Int(d)
+		}
+		return optionalNumber(formatter: formatter).map { Int(truncating: $0) }
 	}
 	
 	func toInt(formatter: NumberFormatter = NumberFormatter()) -> Int {
-		optionalNumber(formatter: formatter).map { Int(truncating: $0) } ?? 0
+		optionalInt(formatter: formatter) ?? 0
 	}
 }
 
