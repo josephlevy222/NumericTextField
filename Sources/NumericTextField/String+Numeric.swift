@@ -30,6 +30,10 @@ extension String {
 		// Flag non-integers if decimals are disabled
 		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
 		
+		// For integer-only style, also validate that the value fits within Int's range.
+		// Compare Decimal directly to avoid Double overflow / precision loss.
+		if !style.decimalSeparator && (decimal < Decimal(Int.min) || decimal > Decimal(Int.max)) { return false }
+		
 		// Check Range (Flag if outside, don't clamp)
 		// NSDecimalNumber is the correct bridge; Decimal can exceed Double's range,
 		// in which case doubleValue returns ±infinity — treat that as out-of-range.
