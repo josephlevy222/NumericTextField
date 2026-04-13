@@ -62,7 +62,7 @@ private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 	let eKey      = kCase == 1 ? KeyDef(label: "E", value: "E", type: .special) :  blank
 	let done      = KeyDef(label: "Done",value: "done", type: .done, wide: true)
 	
-	let decimal = policy.allowDecimal ? policy.decimalKey : nil
+	let decimal = policy.allowDecimal ? policy.decimalKey : (kCase == 5 ? backspace : nil)
 	
 	return [
 		[digit("1"), digit("2"), digit("3"), backspace].compactMap { $0 },
