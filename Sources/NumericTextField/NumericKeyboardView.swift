@@ -8,29 +8,29 @@ import SwiftUI
 private enum KeyType { case digit, special, action, done, blank }
 
 private struct KeyDef: Identifiable {
-    let id = UUID()
-    let label: String
-    let value: String
-    let type: KeyType
-    var wide: Bool = false
+	let id = UUID()
+	let label: String
+	let value: String
+	let type: KeyType
+	var wide: Bool = false
 }
 
 // MARK: - Style-driven policy
 
 private struct KeyboardPolicy {
-    let allowDecimal: Bool
-    let allowExponent: Bool
-    let allowNegatives: Bool
-    let decimalKey: KeyDef
-
-    init(style: NumericStringStyle) {
-        // NumericStringStyle guarantees allowDecimal == true whenever allowExponent == true
-        self.allowDecimal   = style.decimalSeparator
-        self.allowExponent  = style.exponent
-        self.allowNegatives = style.negatives
-        let sep = Locale.current.decimalSeparator ?? "."
-        self.decimalKey = KeyDef(label: sep, value: sep, type: .special)
-    }
+	let allowDecimal: Bool
+	let allowExponent: Bool
+	let allowNegatives: Bool
+	let decimalKey: KeyDef
+	
+	init(style: NumericStringStyle) {
+		// NumericStringStyle guarantees allowDecimal == true whenever allowExponent == true
+		self.allowDecimal   = style.decimalSeparator
+		self.allowExponent  = style.exponent
+		self.allowNegatives = style.negatives
+		let sep = Locale.current.decimalSeparator ?? "."
+		self.decimalKey = KeyDef(label: sep, value: sep, type: .special)
+	}
 	
 	var keyboardCase : Int {
 		switch (allowDecimal, allowExponent, allowNegatives) {
@@ -62,7 +62,7 @@ private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 	let eKey      = kCase == 1 ? KeyDef(label: "E", value: "E", type: .special) :  blank
 	let done      = KeyDef(label: "Done",value: "done", type: .done, wide: true)
 	
-	let decimal = policy.allowDecimal ? policy.decimalKey : (kCase == 6 ? backspace : nil)
+	let decimal = policy.allowDecimal ? policy.decimalKey : (kCase == 5 ? backspace : nil)
 	
 	return [
 		[digit("1"), digit("2"), digit("3"), backspace].compactMap { $0 },
@@ -91,68 +91,59 @@ private func makeCompactHeight(policy: KeyboardPolicy) -> [[KeyDef]] {
 }
 
 private func makeLandscapeLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
-    var row: [KeyDef] = [
+	var row: [KeyDef] = [
 		digit("1"), digit("2"), digit("3"),digit("4"), digit("5"), digit("6"),digit("7"), digit("8"), digit("9"), digit("0")
-    ]
-    if policy.allowDecimal   { row.append(policy.decimalKey) }
-    if policy.allowNegatives || policy.allowExponent  { row.append(KeyDef(label: "−",    value: "-", type: .special)) }
-    if policy.allowExponent  { row.append(KeyDef(label: "E",    value: "E",         type: .special)) }
-    row.append(KeyDef(label: "⌫",    value: "backspace", type: .action))
+	]
+	if policy.allowDecimal   { row.append(policy.decimalKey) }
+	if policy.allowNegatives || policy.allowExponent  { row.append(KeyDef(label: "−",    value: "-", type: .special)) }
+	if policy.allowExponent  { row.append(KeyDef(label: "E",    value: "E",         type: .special)) }
+	row.append(KeyDef(label: "⌫",    value: "backspace", type: .action))
 	row.append(KeyDef(label: "Done", value: "done",      type: .done, wide: true))
-    return [row]
+	return [row]
 }
 
 // MARK: - Key view
 
 private struct NumericKey: View {
-    let key: KeyDef
-    let onTap: () -> Void
-
-    @State private var pressed = false
-
-    var body: some View {
-        Button(action: {}) {
-            ZStack {
-                background
-                label
-            }
-            .frame(height: 44)
-            .scaleEffect(pressed ? 0.94 : 1.0)
-            .animation(.easeOut(duration: 0.08), value: pressed)
-        }
-        .buttonStyle(.plain)
-        .disabled(key.type == .blank)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !pressed && key.type != .blank {
-                        pressed = true
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
-                }
-                .onEnded { _ in
-                    pressed = false
-                    if key.type != .blank { onTap() }
-                }
-        )
-    }
+	let key: KeyDef
+	let onTap: () -> Void
+	
+	@State private var pressed = false
+	
+	var body: some View {
+		Button(action: {}) {
+			ZStack {
+				background
+				label
+			}
+			.frame(height: 44)
+			.scaleEffect(pressed ? 0.94 : 1.0)
+			.animation(.easeOut(duration: 0.08), value: pressed)
+		}
+		.buttonStyle(.plain)
+		.disabled(key.type == .blank)
+		.simultaneousGesture(
+			DragGesture(minimumDistance: 0)
+				.onChanged { _ in
+					if !pressed && key.type != .blank {
+						pressed = true
+						UIImpactFeedbackGenerator(style: .light).impactOccurred()
+					}
+				}
+				.onEnded { _ in
+					pressed = false
+					if key.type != .blank { onTap() }
+				}
+		)
+	}
 	
 	@ViewBuilder
 	private var background: some View {
 		let r = RoundedRectangle(cornerRadius: 10, style: .continuous)
 		switch key.type {
-		case .digit,.special, .action:
-			// Adapts: Light gray in light mode, dark gray in dark mode
+		case .digit, .special, .action:
 			r.fill(Color(UIColor.tertiarySystemBackground))
 				.shadow(color: Color.black.opacity(0.15), radius: 0, x: 0, y: pressed ? 1 : 1.5)
-//		case .special:
-//			// Uses a subtle blue tint that works in both modes
-//			r.fill(Color.white)//.opacity(pressed ? 0.1 : 0.05))
-//				.overlay(r.stroke(Color.blue.opacity(pressed ? 0.1 : 0.05), lineWidth: 0.5))
-//				.shadow(color: Color.black.opacity(0.5), radius: 0, x: 0, y: pressed ? 1 : 1.5)
-//		case .action:
-//			r.fill(Color(UIColor.secondarySystemBackground))
-//				.shadow(color: Color.black.opacity(0.15), radius: 0, x: 0, y: pressed ? 1 : 1.5)
 		case .done:
 			r.fill(Color.blue)
 				.shadow(color: Color.blue.opacity(0.3), radius: 2, x: 0, y: pressed ? 1 : 2)
@@ -170,32 +161,32 @@ private struct NumericKey: View {
 		case .blank:   .clear
 		}
 	}
-
-    @ViewBuilder
-    private var label: some View {
-        if key.value == "E" {
-            VStack(spacing: 1) {
-                Text("E")
-                    .font(.system(size: 20, weight: .regular, design: .monospaced))
-                    .foregroundStyle(labelColor) //Color(red: 0.48, green: 0.72, blue: 0.98))
-                Text("×10ⁿ")
-                    .font(.system(size: 8))
-                    .foregroundStyle(labelColor) //Color(red: 0.4, green: 0.55, blue: 0.75))
-            }
-        } else {
-            Text(key.label)
-                .font(labelFont)
-                .foregroundStyle(labelColor)
-        }
-    }
-
-    private var labelFont: Font {
-        switch key.type {
-        case .digit, .special, .blank: return .system(size: 20, weight: .regular, design: .monospaced)
-        case .action:                  return .system(size: 18, weight: .regular)
-        case .done:                    return .system(size: 15, weight: .medium)
-        }
-    }
+	
+	@ViewBuilder
+	private var label: some View {
+		if key.value == "E" {
+			VStack(spacing: 1) {
+				Text("E")
+					.font(.system(size: 20, weight: .regular, design: .monospaced))
+					.foregroundStyle(labelColor)
+				Text("×10ⁿ")
+					.font(.system(size: 8))
+					.foregroundStyle(labelColor)
+			}
+		} else {
+			Text(key.label)
+				.font(labelFont)
+				.foregroundStyle(labelColor)
+		}
+	}
+	
+	private var labelFont: Font {
+		switch key.type {
+		case .digit, .special, .blank: return .system(size: 20, weight: .regular, design: .monospaced)
+		case .action:                  return .system(size: 18, weight: .regular)
+		case .done:                    return .system(size: 15, weight: .medium)
+		}
+	}
 }
 
 // MARK: - Keyboard view
@@ -234,7 +225,7 @@ struct NumericKeyboardView: View {
 					}
 				}
 			}
-
+			
 			.padding(.horizontal, 6) // Minimized padding to reclaim width
 			.padding(.top, 8)
 			.padding(.bottom, 4) // Reduced bottom space
@@ -260,25 +251,18 @@ struct NumericKeyboardView: View {
 			text = candidate.numericValue(style: style)
 		}
 	}
-
-}
-
-extension View {
-    @ViewBuilder
-    fileprivate func `if`<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
-        if condition { transform(self) } else { self }
-    }
+	
 }
 
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 0) {
+	VStack(spacing: 0) {
 		Spacer()
-        // Full scientific
-        NumericKeyboardView(text: .constant("3.14E-9"),
-                            style: .defaultStyle, onDone: { _ in })
-    }
+		// Full scientific
+		NumericKeyboardView(text: .constant("3.14E-9"),
+							style: .defaultStyle, onDone: { _ in })
+	}
 }
 
 #endif

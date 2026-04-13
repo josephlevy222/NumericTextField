@@ -1,8 +1,4 @@
-//String+Numeric.swift
-import Foundation
-
 // String+Numeric.swift
-
 import Foundation
 
 extension Decimal {
@@ -35,8 +31,11 @@ extension String {
 		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
 		
 		// Check Range (Flag if outside, don't clamp)
+		// NSDecimalNumber is the correct bridge; Decimal can exceed Double's range,
+		// in which case doubleValue returns ±infinity — treat that as out-of-range.
 		if let range = style.range {
-			let dValue = (decimal as NSNumber).doubleValue
+			let dValue = NSDecimalNumber(decimal: decimal).doubleValue
+			guard dValue.isFinite else { return false }
 			return range.contains(dValue)
 		}
 		
@@ -86,48 +85,48 @@ extension String {
 	}
 }
 
-public var decimalNumberFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.usesSignificantDigits = true
-	formatter.numberStyle = .none
-	formatter.allowsFloats = true
-	return formatter
-}()
-
-public var scientificFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.numberStyle = .scientific
-	formatter.allowsFloats = true
-	return formatter
-}()
-
-public var integerFormatter: NumberFormatter = {
-	let formatter = NumberFormatter()
-	formatter.numberStyle = .none
-	formatter.allowsFloats = false
-	return formatter
-}()
-
-extension NSNumber {
-	public var scientificStyle: String {
-		return scientificFormatter.string(from: self) ?? description
+extension String {
+	func toDecimal() -> Decimal? {
+		// Decimal(string:locale:) handles commas vs dots automatically based on the user's region
+		Decimal(string: self, locale: .current)
 	}
-	public var decimalStyle: String {
-		return decimalNumberFormatter.string(from: self) ?? description
+	
+	func optionalNumber(formatter: NumberFormatter = NumberFormatter()) -> NSNumber? {
+		formatter.number(from: self)
 	}
-	public var integerStyle: String {
-		return integerFormatter.string(from: self) ?? description
+	
+	/// Returns the string's value as a `Double`, or `nil` if the string is not a valid number
+	/// or if the value overflows `Double`'s finite range.
+	func optionalDouble(formatter: NumberFormatter = NumberFormatter()) -> Double? {
+		if let decimal = toDecimal() {
+			let d = NSDecimalNumber(decimal: decimal).doubleValue
+			return d.isFinite ? d : nil
+		}
+		return optionalNumber(formatter: formatter).map { Double(truncating: $0) }
+	}
+	
+	func toDouble(formatter: NumberFormatter = NumberFormatter()) -> Double {
+		optionalDouble(formatter: formatter) ?? 0.0
+	}
+	
+	/// Returns the string's value as an `Int`, or `nil` if the string is not a valid whole number or if the value overflows `Int`'s range.
+	func optionalInt(formatter: NumberFormatter = NumberFormatter()) -> Int? {
+		if let decimal = toDecimal() {
+			guard decimal.isWholeNumber else { return nil }
+			let d = NSDecimalNumber(decimal: decimal).doubleValue
+			guard d.isFinite, d >= Double(Int.min), d <= Double(Int.max) else { return nil }
+			return Int(d)
+		}
+		return optionalNumber(formatter: formatter).map { Int(truncating: $0) }
+	}
+	
+	func toInt(formatter: NumberFormatter = NumberFormatter()) -> Int {
+		optionalInt(formatter: formatter) ?? 0
 	}
 }
 
-#if os(iOS) && !targetEnvironment(macCatalyst)
-public enum NumericKeyboardLayout {
-	case automatic  // Switches between Portrait/Landscape based on size class
-	case portrait
-	case landscape
-	case compactHeight
-}
-#endif
+// MARK: - NumericStringStyle
+
 public struct NumericStringStyle {
 	static public var defaultStyle = NumericStringStyle()
 	static public var intStyle = NumericStringStyle(decimalSeparator: false, negatives: true, exponent: false)
@@ -136,12 +135,10 @@ public struct NumericStringStyle {
 	public var negatives: Bool
 	public var exponent: Bool
 	public var range: ClosedRange<Double>?
-#if os(iOS) && !targetEnvironment(macCatalyst) /// Only relevant for the custom iOS touch keyboard
-	public var layout: NumericKeyboardLayout
-#endif
-	
-	// MARK: - iOS Initializer
 #if os(iOS) && !targetEnvironment(macCatalyst)
+	/// Only relevant for the custom iOS touch keyboard.
+	public var layout: NumericKeyboardLayout
+	
 	public init(
 		decimalSeparator: Bool = true,
 		negatives: Bool = true,
@@ -156,8 +153,6 @@ public struct NumericStringStyle {
 		self.layout = layout
 	}
 #else
-	
-	// MARK: - macOS & Catalyst Initializer
 	public init(
 		decimalSeparator: Bool = true,
 		negatives: Bool = true,
@@ -170,26 +165,4 @@ public struct NumericStringStyle {
 		self.range = range
 	}
 #endif
-}
-
-public extension String {
-	
-	func optionalNumber(formatter: NumberFormatter = NumberFormatter()) -> NSNumber? {
-		formatter.number(from: self)
-	}
-	
-	func optionalDouble(formatter: NumberFormatter = NumberFormatter()) -> Double? {
-		if let value = optionalNumber(formatter: formatter) {
-			return Double(truncating: value) } else { return nil }
-	}
-	
-	func toDouble(formatter: NumberFormatter = NumberFormatter()) -> Double {
-		if let value = optionalNumber(formatter: formatter) {
-			return Double(truncating: value) } else { return 0.0 }
-	}
-	
-	func toInt(formatter: NumberFormatter = NumberFormatter()) -> Int {
-		if let value = optionalNumber(formatter: formatter) {
-			return Int(truncating: value) } else { return 0 }
-	}
 }
