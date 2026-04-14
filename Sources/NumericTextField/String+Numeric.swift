@@ -15,93 +15,63 @@ extension Decimal {
 
 extension String {
 
-	/// Determines if the current string is a valid representation based on style.
-	public func isValid(style: NumericStringStyle) -> Bool { 
-		if self.isEmpty || self == "-" || self == "." || self == "," { return true }
-		let upper = self.uppercased()
+	/// Determines if the current string is a valid representation based on style.  Used for UI highlighting. Returns true only if it's a real, in-range number.
+	public func isValid(style: NumericStringStyle) -> Bool {
+		let localeSep = Locale.current.decimalSeparator ?? "."
+		let normalized = self.replacingOccurrences(of: localeSep, with: ".")
 		
-		// Allow partial scientific notation if the style allows exponents
-		if upper.hasSuffix("E") || upper.hasSuffix("E-") {
-			return style.exponent
+		guard let value = Double(normalized), value.isFinite // Basic double check,Infinity and NaN check
+		else { return false }
+		
+		if value == 0 { // Filter out signs and separators to see if there are any non-zero digits
+			let hasNonZeroDigits = normalized.contains { $0.isNumber && $0 != "0" }
+			if  hasNonZeroDigits { return false } // This was something like 1E-400
 		}
 		
-		guard let decimal = self.toDecimal() else { return false }
+		guard style.decimalSeparator || Int(exactly: value) != nil  /*Integer check*/ else { return false }
 		
-		// Flag non-integers if decimals are disabled
-		if !style.decimalSeparator && !decimal.isWholeNumber { return false }
-		
-		// For integer-only style, also validate that the value fits within Int's range.
-		// Compare Decimal directly to avoid Double overflow / precision loss.
-		if !style.decimalSeparator && (decimal < Decimal(Int.min) || decimal > Decimal(Int.max)) { return false }
-		
-		// NEW: if integer-only and range is set, require the Int value to be inside the range.
-		if !style.decimalSeparator, let range = style.range {
-			// decimal is already known whole + within Int bounds at this point, so this is safe.
-			let intValue = NSDecimalNumber(decimal: decimal).intValue
-			let dValue = Double(intValue)
-			return range.contains(dValue)
-		}
-		
-		// Existing Double/range logic (covers decimalSeparator == true, or any style where you want range enforced via Double)
-		if let range = style.range {
-			let dValue = NSDecimalNumber(decimal: decimal).doubleValue
-			guard dValue.isFinite else { return false }
-			
-			// If a range is provided, also require the Double to be within that range.
-			if let range = style.range {
-				return range.contains(dValue)
-			}
-			
-			return true
-		} else {
-			// Integer-only: must be whole, and must fit in Int exactly.
-			guard decimal.isWholeNumber else { return false }
-			return decimal >= Decimal(Int.min) && decimal <= Decimal(Int.max)
-		}
+		return style.range?.contains(value) ?? true // Range check
 	}
 	
 	public func numericValue(style: NumericStringStyle) -> String {
-		let sep = Locale.current.decimalSeparator ?? "."
+		
+		let sep = Character(Locale.current.decimalSeparator ?? ".")
 		var hasDecimal = false
 		var hasExponent = false
 		var hasDigits = false
-		var filteredChars = [Character]()
+		var minusAllowed = style.negatives
 		
-		for char in self.uppercased() {
-			let sChar = String(char)
-			
-			// 1. Digits
-			if "0123456789".contains(char) {
-				hasDigits = true
-				filteredChars.append(char)
-				continue
-			}
-			
-			// 2. Negative Sign (At start or right after 'E')
-			if sChar == "-"  {
-				if (filteredChars.isEmpty && style.negatives) || filteredChars.last == "E" {
-					filteredChars.append(char)
-					continue
+		func keepIf(_ condition: Bool, perform: () -> Void ) -> Bool {
+			if condition { perform() }
+			return condition
+		}
+		
+		let filtered = self.uppercased().filter { char in
+			switch char {
+			case "0"..."9":
+				keepIf(true) {
+					hasDigits = true
+					minusAllowed = false
 				}
-			}
-			
-			// 3. Decimal Separator
-			if sChar == sep && style.decimalSeparator && !hasDecimal && !hasExponent {
-				hasDecimal = true
-				filteredChars.append(char)
-				continue
-			}
-			
-			// 4. Exponent
-			if sChar == "E" && style.exponent && hasDigits && !hasExponent {
-				hasExponent = true
-				filteredChars.append(char)
-				continue
+			case "-":
+				keepIf(minusAllowed) { minusAllowed = false }
+			case sep:
+				keepIf(style.decimalSeparator && !hasDecimal && !hasExponent) {
+					hasDecimal = true
+					minusAllowed = false
+				}
+			case "E":
+				keepIf(style.exponent && hasDigits && !hasExponent) {
+					hasExponent = true
+					minusAllowed = true
+				}
+			default:
+				false
 			}
 		}
-		return String(filteredChars)
+		return String(filtered)
 	}
-
+ 
 	func toDecimal() -> Decimal? {
 		// Decimal(string:locale:) handles commas vs dots automatically based on the user's region
 		Decimal(string: self, locale: .current)

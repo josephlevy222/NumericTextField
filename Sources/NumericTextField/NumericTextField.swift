@@ -136,6 +136,7 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
+		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
 #else
 		TextField(title, text: $numericText,
 				  onEditingChanged: { exited in
@@ -148,7 +149,6 @@ public struct NumericTextField: View {
 			onNext?()
 		})
 		.numericText(number: $numericText, style: style)
-		.foregroundStyle(numericText.isValid(style: style) ? .primary : Color.red)
 		.focused($isFocused)
 		.onChange(of: isFocused) { if !isFocused { numericText = reformatter(numericText, style) } }
 		.onAppear { numericText = reformatter(numericText, style) }
@@ -209,13 +209,15 @@ public func reformat(_ string: String, style: NumericStringStyle) -> String {
 
 public struct NumericTextModifier: ViewModifier {
 	@Binding public var number: String
+	@State private var textColor = Color.primary
 	public var style = NumericStringStyle()
 
 	public func body(content: Content) -> some View {
 		content
-			.foregroundStyle(number.isValid(style: style) ? .primary : Color.red)
+			.foregroundStyle(textColor)
 			.onChange(of: number) { _, newValue in
 				number = newValue.numericValue(style: style)
+				textColor = number.isValid(style: style) ? .primary : .red
 			}
 	}
 }

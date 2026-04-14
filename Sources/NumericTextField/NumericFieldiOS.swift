@@ -295,6 +295,7 @@ struct NumericUITextField: UIViewRepresentable {
 			field.textAlignment = textAlignment
 			if field.isFirstResponder { coord.cursorView?.reposition(in: field) }
 		}
+		field.textColor = text.isValid(style: style) ? .label : .systemRed
 		coord.parent = self
 	}
 
@@ -323,7 +324,6 @@ struct NumericUITextField: UIViewRepresentable {
 			cursorView?.stopBlinking()
 			parent.text = bridge.text
 			parent.onFocusChange(false)
-			textField.textColor = parent.text.isValid(style: parent.style) ? .label : .systemRed
 		}
 
 		func textField(_ textField: UITextField,
