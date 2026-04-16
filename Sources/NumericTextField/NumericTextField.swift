@@ -28,7 +28,8 @@ public struct NumericTextField: View {
 				onEditingChanged: @escaping (Bool) -> Void = { _ in },
 				onCommit: @escaping () -> Void = { },
 				onNext: (() -> Void)? = nil,
-				reformatter: @escaping (_ stringValue: String, _ style: NumericStringStyle) -> String = reformat) {
+				reformatter: @escaping (_ stringValue: String, _ style: NumericStringStyle) -> String = reformat,
+				validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil) {
 		self._numericText = numericText
 		self.title = title
 		self.style = style
@@ -38,6 +39,7 @@ public struct NumericTextField: View {
 		self.onCommit = onCommit
 		self.onNext = onNext
 		self.reformatter = reformatter
+		self.validationHelpText = validationHelpText
 	}
 	public var keyboardStyle: NumericKeyboardLayout = .automatic
 #else
@@ -48,7 +50,8 @@ public struct NumericTextField: View {
 				onEditingChanged: @escaping (Bool) -> Void = { _ in },
 				onCommit: @escaping () -> Void = { },
 				onNext: (() -> Void)? = nil,
-				reformatter: @escaping (String, NumericStringStyle) -> String = reformat) {
+				reformatter: @escaping (String, NumericStringStyle) -> String = reformat,
+				validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil) {
 		self._numericText = numericText
 		self.title = title
 		self.style = style
@@ -57,6 +60,7 @@ public struct NumericTextField: View {
 		self.onCommit = onCommit
 		self.onNext = onNext
 		self.reformatter = reformatter
+		self.validationHelpText = validationHelpText
 	}
 #endif
 
@@ -69,6 +73,7 @@ public struct NumericTextField: View {
 	public var onCommit: () -> Void = { }
 	public var onNext: (() -> Void)? = nil
 	public var reformatter: (String, NumericStringStyle) -> String = reformat
+	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil
 
 #if os(iOS)
 	private var _font: UIFont? = nil
@@ -116,6 +121,8 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
+		let currentValidationHelp = validationHelpText?(numericText, style)
+		let shouldShowValidationHelp = !numericText.isValid(style: style) && !(currentValidationHelp?.isEmpty ?? true)
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
@@ -136,6 +143,9 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
+		.if(shouldShowValidationHelp && currentValidationHelp != nil) { view in
+			view.contextMenu { Text(currentValidationHelp!) }
+		}
 		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
 #else
 		TextField(title, text: $numericText,
@@ -154,6 +164,9 @@ public struct NumericTextField: View {
 		.onAppear { numericText = reformatter(numericText, style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
+		.if(shouldShowValidationHelp && currentValidationHelp != nil) { view in
+			view.help(currentValidationHelp!)
+		}
 #endif
 	}
 }
