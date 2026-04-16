@@ -74,6 +74,7 @@ public struct NumericTextField: View {
 	public var onNext: (() -> Void)? = nil
 	public var reformatter: (String, NumericStringStyle) -> String = reformat
 	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil
+	@State private var isShowingValidationHelpAlert = false
 
 #if os(iOS)
 	private var _font: UIFont? = nil
@@ -121,9 +122,11 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
-		let isValidInput = numericText.isValid(style: style)
-		let validationHelpToShow = isValidInput ? "" : (validationHelpText?(numericText, style) ?? "")
-		let shouldShowValidationHelp = !validationHelpToShow.isEmpty
+		let validationHelpToShow: String? = {
+			guard !numericText.isValid(style: style) else { return nil }
+			guard let helpText = validationHelpText?(numericText, style), !helpText.isEmpty else { return nil }
+			return helpText
+		}()
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
@@ -144,8 +147,12 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
-		.if(shouldShowValidationHelp) { view in
-			view.contextMenu { Text(validationHelpToShow) }
+		.ifLet(validationHelpToShow) { view, helpText in
+			view
+				.onLongPressGesture { isShowingValidationHelpAlert = true }
+				.alert(helpText, isPresented: $isShowingValidationHelpAlert) {
+					Button("OK", role: .cancel) { }
+				}
 		}
 		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
 #else
@@ -165,8 +172,8 @@ public struct NumericTextField: View {
 		.onAppear { numericText = reformatter(numericText, style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
-		.if(shouldShowValidationHelp) { view in
-			view.help(validationHelpToShow)
+		.ifLet(validationHelpToShow) { view, helpText in
+			view.help(helpText)
 		}
 #endif
 	}
@@ -190,6 +197,11 @@ private extension View {
 	@ViewBuilder
 	func `if`<C: View>(_ condition: Bool, transform: (Self) -> C) -> some View {
 		if condition { transform(self) } else { self }
+	}
+
+	@ViewBuilder
+	func ifLet<T, C: View>(_ value: T?, transform: (Self, T) -> C) -> some View {
+		if let value { transform(self, value) } else { self }
 	}
 }
 
