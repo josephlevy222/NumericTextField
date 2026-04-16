@@ -149,6 +149,9 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
+		.onChange(of: numericText) { _, _ in
+			if activeValidationHelpText == nil { isShowingValidationHelpAlert = false }
+		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
 				.onLongPressGesture { isShowingValidationHelpAlert = true }
