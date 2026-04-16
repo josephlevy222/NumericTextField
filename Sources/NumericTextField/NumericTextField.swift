@@ -143,7 +143,7 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
-		.if(shouldShowValidationHelp && currentValidationHelp != nil) { view in
+		.if(shouldShowValidationHelp) { view in
 			view.contextMenu { Text(currentValidationHelp!) }
 		}
 		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
@@ -164,7 +164,7 @@ public struct NumericTextField: View {
 		.onAppear { numericText = reformatter(numericText, style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
-		.if(shouldShowValidationHelp && currentValidationHelp != nil) { view in
+		.if(shouldShowValidationHelp) { view in
 			view.help(currentValidationHelp!)
 		}
 #endif
