@@ -121,7 +121,8 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
-		let validationHelpToShow = (!numericText.isValid(style: style) ? validationHelpText?(numericText, style) : nil) ?? ""
+		let isValidInput = numericText.isValid(style: style)
+		let validationHelpToShow = isValidInput ? "" : (validationHelpText?(numericText, style) ?? "")
 		let shouldShowValidationHelp = !validationHelpToShow.isEmpty
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
