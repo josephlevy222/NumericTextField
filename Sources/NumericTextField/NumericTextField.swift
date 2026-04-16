@@ -121,8 +121,8 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
-		let currentValidationHelp = validationHelpText?(numericText, style)
-		let shouldShowValidationHelp = !numericText.isValid(style: style) && !(currentValidationHelp?.isEmpty ?? true)
+		let validationHelpToShow = (!numericText.isValid(style: style) ? validationHelpText?(numericText, style) : nil) ?? ""
+		let shouldShowValidationHelp = !validationHelpToShow.isEmpty
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
@@ -144,7 +144,7 @@ public struct NumericTextField: View {
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
 		.if(shouldShowValidationHelp) { view in
-			view.contextMenu { Text(currentValidationHelp!) }
+			view.contextMenu { Text(validationHelpToShow) }
 		}
 		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
 #else
@@ -165,7 +165,7 @@ public struct NumericTextField: View {
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
 		.if(shouldShowValidationHelp) { view in
-			view.help(currentValidationHelp!)
+			view.help(validationHelpToShow)
 		}
 #endif
 	}
