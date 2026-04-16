@@ -77,8 +77,12 @@ public struct NumericTextField: View {
 	@State private var isShowingValidationHelpAlert = false
 
 	private var activeValidationHelpText: String? {
-		guard !numericText.isValid(style: style) else { return nil }
-		guard let helpText = validationHelpText?(numericText, style), !helpText.isEmpty else { return nil }
+		activeValidationHelpText(for: numericText)
+	}
+
+	private func activeValidationHelpText(for value: String) -> String? {
+		guard !value.isValid(style: style) else { return nil }
+		guard let helpText = validationHelpText?(value, style), !helpText.isEmpty else { return nil }
 		return helpText
 	}
 
@@ -150,8 +154,7 @@ public struct NumericTextField: View {
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
 		.onChange(of: numericText) { _, newValue in
-			let hasValidationHelp = !newValue.isValid(style: style) && (validationHelpText?(newValue, style)?.isEmpty == false)
-			if !hasValidationHelp { isShowingValidationHelpAlert = false }
+			if activeValidationHelpText(for: newValue) == nil { isShowingValidationHelpAlert = false }
 		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
