@@ -149,13 +149,13 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
-		.onChange(of: numericText) { _, _ in
-			if activeValidationHelpText == nil { isShowingValidationHelpAlert = false }
+		.onChange(of: numericText) { _, newValue in
+			let hasValidationHelp = !newValue.isValid(style: style) && (validationHelpText?(newValue, style)?.isEmpty == false)
+			if !hasValidationHelp { isShowingValidationHelpAlert = false }
 		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
 				.onLongPressGesture { isShowingValidationHelpAlert = true }
-				.accessibilityHint("Long press for validation help.")
 				.accessibilityAction(named: Text("Show validation help")) {
 					isShowingValidationHelpAlert = true
 				}
