@@ -76,6 +76,12 @@ public struct NumericTextField: View {
 	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil
 	@State private var isShowingValidationHelpAlert = false
 
+	private var activeValidationHelpText: String? {
+		guard !numericText.isValid(style: style) else { return nil }
+		guard let helpText = validationHelpText?(numericText, style), !helpText.isEmpty else { return nil }
+		return helpText
+	}
+
 #if os(iOS)
 	private var _font: UIFont? = nil
 #else
@@ -122,11 +128,7 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
-		let validationHelpToShow: String? = {
-			guard !numericText.isValid(style: style) else { return nil }
-			guard let helpText = validationHelpText?(numericText, style), !helpText.isEmpty else { return nil }
-			return helpText
-		}()
+		let validationHelpToShow = activeValidationHelpText
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
@@ -150,6 +152,10 @@ public struct NumericTextField: View {
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
 				.onLongPressGesture { isShowingValidationHelpAlert = true }
+				.accessibilityHint("Long press for validation help.")
+				.accessibilityAction(named: Text("Show validation help")) {
+					isShowingValidationHelpAlert = true
+				}
 				.alert(helpText, isPresented: $isShowingValidationHelpAlert) {
 					Button("OK", role: .cancel) { }
 				}
