@@ -74,7 +74,7 @@ public struct NumericTextField: View {
 	public var onNext: (() -> Void)? = nil
 	public var reformatter: (String, NumericStringStyle) -> String = reformat
 	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil
-	@State private var isShowingValidationHelpAlert = false
+	@State private var isShowingValidationHelp = false
 
 	private var activeValidationHelpText: String? {
 		deriveValidationHelpText(for: numericText)
@@ -154,16 +154,33 @@ public struct NumericTextField: View {
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
 		.onChange(of: numericText) { _, newValue in
-			if deriveValidationHelpText(for: newValue) == nil { isShowingValidationHelpAlert = false }
+			if deriveValidationHelpText(for: newValue) == nil { isShowingValidationHelp = false }
 		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
-				.simultaneousGesture(LongPressGesture().onEnded { _ in isShowingValidationHelpAlert = true })
+				.simultaneousGesture(
+					LongPressGesture(minimumDuration: 0.5)
+						.sequenced(before: DragGesture(minimumDistance: 0))
+						.onChanged { value in
+							if case .second(true, _) = value { isShowingValidationHelp = true }
+						}
+						.onEnded { _ in isShowingValidationHelp = false }
+				)
 				.accessibilityAction(named: Text(LocalizedStringKey("Show validation help"))) {
-					isShowingValidationHelpAlert = true
+					isShowingValidationHelp = true
+					DispatchQueue.main.asyncAfter(deadline: .now() + 3) { isShowingValidationHelp = false }
 				}
-				.alert(helpText, isPresented: $isShowingValidationHelpAlert) {
-					Button("OK", role: .cancel) { }
+				.overlay(alignment: .top) {
+					if isShowingValidationHelp {
+						Text(helpText)
+							.padding(8)
+							.background(Color(.secondarySystemBackground),
+										in: RoundedRectangle(cornerRadius: 8))
+							.shadow(radius: 3)
+							.fixedSize(horizontal: false, vertical: true)
+							.allowsHitTesting(false)
+							.alignmentGuide(.top) { d in d[.bottom] }
+					}
 				}
 		}
 		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
