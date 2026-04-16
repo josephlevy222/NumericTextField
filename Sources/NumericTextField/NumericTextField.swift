@@ -158,7 +158,7 @@ public struct NumericTextField: View {
 		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
-				.onLongPressGesture { isShowingValidationHelpAlert = true }
+				.simultaneousGesture(LongPressGesture().onEnded { _ in isShowingValidationHelpAlert = true })
 				.accessibilityAction(named: Text(LocalizedStringKey("Show validation help"))) {
 					isShowingValidationHelpAlert = true
 				}
