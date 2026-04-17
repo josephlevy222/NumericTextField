@@ -142,6 +142,7 @@ public struct NumericTextField: View {
 			isFocused: Binding(get: { isFocused }, set: { isFocused = $0 }),
 			font: _font,
 			textAlignment: _textAlignment,
+			suppressEditMenu: isShowingValidationHelp,
 			onDone: { value in
 				numericText = reformatter(value, style)
 				onCommit()
