@@ -1,17 +1,11 @@
 //
 //  NumericTextField.swift
-//  NumericTextFieldTester
 //
 //  Created by Joseph Levy on 4/13/26.
 //
 
-
 // NumericTextField.swift
 import SwiftUI
-#if os(iOS)
-import UIKit
-import EditableText   // provides UIFont(font: SwiftUI.Font)
-#endif
 
 // MARK: - NumericTextField
 
@@ -19,7 +13,6 @@ import EditableText   // provides UIFont(font: SwiftUI.Font)
 /// On iOS (non-Catalyst): uses a custom numeric keyboard.
 /// On macOS / Catalyst: uses a standard TextField with NumericTextModifier.
 public struct NumericTextField: View {
-#if os(iOS) && !targetEnvironment(macCatalyst)
 	public init(_ title: LocalizedStringKey,
 				numericText: Binding<String>,
 				style: NumericStringStyle = .defaultStyle,
@@ -28,48 +21,42 @@ public struct NumericTextField: View {
 				onEditingChanged: @escaping (Bool) -> Void = { _ in },
 				onCommit: @escaping () -> Void = { },
 				onNext: (() -> Void)? = nil,
-				reformatter: @escaping (_ stringValue: String, _ style: NumericStringStyle) -> String = reformat) {
+				reformatter:  ( (_ style: NumericStringStyle) -> String)? = nil,
+				validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil) {
 		self._numericText = numericText
-		self.title = title
+					self.title = title
 		self.style = style
 		self.keyboardStyle = keyboardStyle
 		self._isFocused = isFocused.wrappedValue
 		self.onEditingChanged = onEditingChanged
 		self.onCommit = onCommit
 		self.onNext = onNext
-		self.reformatter = reformatter
+		self.reformatter = reformatter ?? numericText.wrappedValue.reformat
+		self.validationHelpText = validationHelpText ?? validationMessage
 	}
 	public var keyboardStyle: NumericKeyboardLayout = .automatic
-#else
-	public init(_ title: LocalizedStringKey,
-				numericText: Binding<String>,
-				style: NumericStringStyle = .defaultStyle,
-				isFocused: Binding<FocusState<Bool>> = .constant(FocusState()),
-				onEditingChanged: @escaping (Bool) -> Void = { _ in },
-				onCommit: @escaping () -> Void = { },
-				onNext: (() -> Void)? = nil,
-				reformatter: @escaping (String, NumericStringStyle) -> String = reformat) {
-		self._numericText = numericText
-		self.title = title
-		self.style = style
-		self._isFocused = isFocused.wrappedValue
-		self.onEditingChanged = onEditingChanged
-		self.onCommit = onCommit
-		self.onNext = onNext
-		self.reformatter = reformatter
-	}
-#endif
 
 	public let title: LocalizedStringKey
 	@Binding public var numericText: String
 	public var style: NumericStringStyle = .defaultStyle
 	@FocusState public var isFocused: Bool
-
+	private var focusBinding: Binding<Bool> { Binding( get: { isFocused}, set: { isFocused = $0})}
 	public var onEditingChanged: (Bool) -> Void = { _ in }
 	public var onCommit: () -> Void = { }
 	public var onNext: (() -> Void)? = nil
-	public var reformatter: (String, NumericStringStyle) -> String = reformat
-
+	public var reformatter: (_ style: NumericStringStyle) -> String
+	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)?
+	@State private var isShowingValidationHelp = false
+	
+	private var activeValidationHelpText: String? {
+		deriveValidationHelpText(for: numericText)
+	}
+	
+	private func deriveValidationHelpText(for value: String) -> String? {
+		guard !value.isValid(style: style),
+			  let helpText = validationHelpText?(value, style), !helpText.isEmpty else { return nil }
+		return helpText
+	}
 #if os(iOS)
 	private var _font: UIFont? = nil
 #else
@@ -112,49 +99,52 @@ public struct NumericTextField: View {
 	public func textAlignment(_ alignment: NSTextAlignment) -> NumericTextField {
 		var copy = self; copy._textAlignment = alignment; return copy
 	}
-
+	
 	// MARK: Body
 
 	public var body: some View {
+		//let validationHelpToShow = activeValidationHelpText
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
 			text: $numericText,
 			style: style,
 			keyboardStyle: keyboardStyle,
-			isFocused: Binding(get: { isFocused }, set: { isFocused = $0 }),
+			isFocused: focusBinding,
 			font: _font,
 			textAlignment: _textAlignment,
 			onDone: { value in
-				numericText = reformatter(value, style)
+				numericText = reformatter(style)
 				onCommit()
 				onNext?()
 			},
 			onFocusChange: { focused in
-				if !focused { numericText = reformatter(numericText, style) }
+				if !focused { numericText = reformatter( style) }
 				onEditingChanged(focused)
 			}
 		)
-		.onAppear { numericText = reformatter(numericText, style) }
-		//.onChange(of: numericText) { isValid = numericText.isValid(style: style)}
+		.onAppear { numericText = reformatter(style) }
+		.errorOverlay(activeValidationHelpText, isFocused: focusBinding)
 #else
 		TextField(title, text: $numericText,
 				  onEditingChanged: { exited in
-			if exited { numericText = reformatter(numericText, style) }
+			if exited { numericText = reformatter(style) }
 			onEditingChanged(exited)
 		},
 				  onCommit: {
-			numericText = reformatter(numericText, style)
+			numericText = reformatter(style)
 			onCommit()
 			onNext?()
 		})
 		.numericText(number: $numericText, style: style)
 		.focused($isFocused)
-		.onChange(of: isFocused) { if !isFocused { numericText = reformatter(numericText, style) } }
-		.onAppear { numericText = reformatter(numericText, style) }
+		.onChange(of: isFocused) { if !isFocused { numericText = reformatter(style) } }
+		.onAppear { numericText = reformatter(style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
+		.errorOverlay(activeValidationHelpText)
 #endif
+		
 	}
 }
 
@@ -177,32 +167,11 @@ private extension View {
 	func `if`<C: View>(_ condition: Bool, transform: (Self) -> C) -> some View {
 		if condition { transform(self) } else { self }
 	}
-}
-
-// MARK: - Default reformatter
-
-public func reformat(_ string: String, style: NumericStringStyle) -> String {
-	let upper = string.uppercased()
-
-	// Preserve partials: don't reformat while user is mid-typing.
-	let partials = ["E", "E-", ".", ",", "-"]
-	if partials.contains(where: { upper.hasSuffix($0) }) || upper.isEmpty {
-		return string
+	
+	@ViewBuilder
+	func ifLet<T, C: View>(_ value: T?, transform: (Self, T) -> C) -> some View {
+		if let value { transform(self, value) } else { self }
 	}
-
-	if let decimalValue = string.toDecimal() {
-		// Keep original if integer style but value has a fractional part (keeps red flag)
-		if !style.decimalSeparator && !decimalValue.isWholeNumber { return string }
-
-		if style.exponent {
-			let absVal = abs(decimalValue)
-			if absVal >= 100_000 || (absVal > 0 && absVal <= 0.001) {
-				return decimalValue.formatted(.number.notation(.scientific).precision(.significantDigits(1...6)))
-			}
-		}
-		return decimalValue.formatted(.number.grouping(.never).precision(.significantDigits(1...20)))
-	}
-	return string
 }
 
 // MARK: - NumericTextModifier
