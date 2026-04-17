@@ -196,7 +196,16 @@ final class NumericUITextFieldView: UITextField {
 		onLayout?()
 	}
 
-	override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool { false }
+	// Suppress the loupe and the copy/paste/select edit menu while preserving
+	// other actions (e.g. VoiceOver "Speak") that UITextField supports by default.
+	private static let suppressedActions: Set<String> = [
+		"cut:", "copy:", "paste:", "delete:",
+		"select:", "selectAll:",
+		"makeTextWritingDirectionLeftToRight:", "makeTextWritingDirectionRightToLeft:",
+	]
+	override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+		Self.suppressedActions.contains(action.description) ? false : super.canPerformAction(action, withSender: sender)
+	}
 }
 
 // MARK: - UIViewRepresentable bridge
