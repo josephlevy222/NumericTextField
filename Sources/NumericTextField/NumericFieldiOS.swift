@@ -28,6 +28,7 @@ struct NumericFieldiOS: View {
 	@Binding var isFocused: Bool
 	var font: UIFont?
 	var textAlignment: NSTextAlignment
+	var suppressEditMenu: Bool
 	var onDone: (String) -> Void
 	var onFocusChange: (Bool) -> Void
 
@@ -40,6 +41,7 @@ struct NumericFieldiOS: View {
 		 isFocused: Binding<Bool> = .constant(false),
 		 font: UIFont? = nil,
 		 textAlignment: NSTextAlignment = .natural,
+		 suppressEditMenu: Bool = false,
 		 onDone: @escaping (String) -> Void = { _ in },
 		 onFocusChange: @escaping (Bool) -> Void = { _ in }) {
 		self.label = label
@@ -49,6 +51,7 @@ struct NumericFieldiOS: View {
 		self._isFocused = isFocused
 		self.font = font
 		self.textAlignment = textAlignment
+		self.suppressEditMenu = suppressEditMenu
 		self.onDone = onDone
 		self.onFocusChange = onFocusChange
 	}
@@ -76,6 +79,7 @@ struct NumericFieldiOS: View {
 				style: style,
 				keyboardStyle: keyboardStyle,
 				textAlignment: textAlignment,
+				suppressEditMenu: suppressEditMenu,
 				onDone: onDone,
 				onFocusChange: onFocusChange
 			)
@@ -191,9 +195,24 @@ final class BlinkingCursorView: UIView {
 
 final class NumericUITextFieldView: UITextField {
 	var onLayout: (() -> Void)?
+	/// When `true`, the loupe and copy/paste/select edit menu are suppressed.
+	var suppressEditMenu = false
+
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		onLayout?()
+	}
+
+	// Suppress the loupe and the copy/paste/select edit menu while preserving
+	// other actions (e.g. VoiceOver "Speak") that UITextField supports by default.
+	private static let suppressedActions: Set<String> = [
+		"cut:", "copy:", "paste:", "delete:",
+		"select:", "selectAll:",
+		"makeTextWritingDirectionLeftToRight:", "makeTextWritingDirectionRightToLeft:",
+	]
+	override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+		guard suppressEditMenu else { return super.canPerformAction(action, withSender: sender) }
+		return Self.suppressedActions.contains(action.description) ? false : super.canPerformAction(action, withSender: sender)
 	}
 }
 
@@ -206,6 +225,7 @@ struct NumericUITextField: UIViewRepresentable {
 	var style: NumericStringStyle
 	var keyboardStyle: NumericKeyboardLayout = .automatic
 	var textAlignment: NSTextAlignment
+	var suppressEditMenu: Bool
 	var onDone: (String) -> Void
 	var onFocusChange: (Bool) -> Void
 
@@ -295,6 +315,7 @@ struct NumericUITextField: UIViewRepresentable {
 			field.textAlignment = textAlignment
 			if field.isFirstResponder { coord.cursorView?.reposition(in: field) }
 		}
+		field.suppressEditMenu = suppressEditMenu
 		field.textColor = text.isValid(style: style) ? .label : .systemRed
 		coord.parent = self
 	}
