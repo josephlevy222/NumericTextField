@@ -75,6 +75,7 @@ public struct NumericTextField: View {
 	public var reformatter: (String, NumericStringStyle) -> String = reformat
 	public var validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil
 	@State private var isShowingValidationHelp = false
+	@State private var helpDismissWork: DispatchWorkItem? = nil
 
 	private var activeValidationHelpText: String? {
 		deriveValidationHelpText(for: numericText)
@@ -84,6 +85,21 @@ public struct NumericTextField: View {
 		guard !value.isValid(style: style) else { return nil }
 		guard let helpText = validationHelpText?(value, style), !helpText.isEmpty else { return nil }
 		return helpText
+	}
+
+	/// Shows the validation-help overlay and automatically hides it after 3 seconds,
+	/// so the normal long-press edit menu is available again on the next interaction.
+	private func showValidationHelpWithAutoDismiss() {
+		helpDismissWork?.cancel()
+		isShowingValidationHelp = true
+		let work = DispatchWorkItem { isShowingValidationHelp = false }
+		helpDismissWork = work
+		DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+	}
+
+	private func hideValidationHelp() {
+		helpDismissWork?.cancel()
+		isShowingValidationHelp = false
 	}
 
 #if os(iOS)
@@ -155,7 +171,7 @@ public struct NumericTextField: View {
 		)
 		.onAppear { numericText = reformatter(numericText, style) }
 		.onChange(of: numericText) { _, newValue in
-			if deriveValidationHelpText(for: newValue) == nil { isShowingValidationHelp = false }
+			if deriveValidationHelpText(for: newValue) == nil { hideValidationHelp() }
 		}
 		.ifLet(validationHelpToShow) { view, helpText in
 			view
@@ -163,13 +179,12 @@ public struct NumericTextField: View {
 					LongPressGesture(minimumDuration: 0.5)
 						.sequenced(before: DragGesture(minimumDistance: 0))
 						.onChanged { value in
-							if case .second(true, _) = value { isShowingValidationHelp = true }
+							if case .second(true, _) = value { showValidationHelpWithAutoDismiss() }
 						}
-						.onEnded { _ in isShowingValidationHelp = false }
+						.onEnded { _ in hideValidationHelp() }
 				)
 				.accessibilityAction(named: Text(LocalizedStringKey("Show validation help"))) {
-					isShowingValidationHelp = true
-					DispatchQueue.main.asyncAfter(deadline: .now() + 3) { isShowingValidationHelp = false }
+					showValidationHelpWithAutoDismiss()
 				}
 				.overlay(alignment: .top) {
 					if isShowingValidationHelp {
