@@ -195,6 +195,8 @@ final class NumericUITextFieldView: UITextField {
 		super.layoutSubviews()
 		onLayout?()
 	}
+
+	override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool { false }
 }
 
 // MARK: - UIViewRepresentable bridge
