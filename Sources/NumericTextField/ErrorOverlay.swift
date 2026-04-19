@@ -21,7 +21,7 @@ struct ErrorOverlayModifier: ViewModifier {
 			.overlay(alignment: .topLeading) {
 				if let message = errorMessage, hasFocus {
 					ErrorBubble(message: message)
-						.offset(y: -36)
+						.offset(y: -24)
 				}
 			}
 			.animation(.easeInOut(duration: 0.2), value: isFocused)
@@ -40,7 +40,8 @@ struct ErrorBubble: View {
 						in: RoundedRectangle(cornerRadius: 8))
 			.shadow(radius: 3)
 			.foregroundColor(.red)
-			.clipShape(RoundedRectangle(cornerRadius: 8))
+			.fixedSize(horizontal: true, vertical: false)
+			//.clipShape(RoundedRectangle(cornerRadius: 8))
 	}
 }
 
