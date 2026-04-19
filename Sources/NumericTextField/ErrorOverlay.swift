@@ -5,7 +5,6 @@
 //
 
 import SwiftUI
-import SwiftUIIntrospect
 
 struct ErrorOverlayModifier: ViewModifier {
 	let errorMessage: String?
