@@ -19,7 +19,7 @@ public func validationMessage(_ string: String, style: NumericStringStyle) -> St
 		if partials.contains(where: { string.uppercased().hasSuffix($0) }) || string.isEmpty { return nil }
 		return "Overflow, reduce magnitude" }
 	guard !value.isNaN else { return "Underlow, 0 will replace"}
-	guard !style.decimalSeparator && Int(exactly: value) == nil else { return "Integer required" }
+	guard style.decimalSeparator || Int(exactly: value) != nil else { return "Integer required" }
 	guard let range = style.range else { return nil }
 	guard range.contains(value) else { return "Out of range: \(range)"}
 	return nil
