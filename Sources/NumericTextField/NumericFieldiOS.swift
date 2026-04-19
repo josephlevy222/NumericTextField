@@ -25,7 +25,7 @@ struct NumericFieldiOS: View {
 	@Binding var text: String
 	var style: NumericStringStyle
 	var keyboardStyle: NumericKeyboardLayout
-	@Binding var isFocused: Bool
+	@Binding var isFocused: FocusState<Bool>
 	var font: UIFont?
 	var textAlignment: NSTextAlignment
 	var onDone: (String) -> Void
@@ -37,7 +37,7 @@ struct NumericFieldiOS: View {
 		 text: Binding<String>,
 		 style: NumericStringStyle = .defaultStyle,
 		 keyboardStyle: NumericKeyboardLayout = .automatic,
-		 isFocused: Binding<Bool> = .constant(false),
+		 isFocused: Binding<FocusState<Bool>> = .constant(FocusState()),
 		 font: UIFont? = nil,
 		 textAlignment: NSTextAlignment = .natural,
 		 onDone: @escaping (String) -> Void = { _ in },
@@ -56,7 +56,8 @@ struct NumericFieldiOS: View {
 	private var resolvedFont: UIFont {
 		font ?? .monospacedSystemFont(ofSize: scaledSize, weight: .regular)
 	}
-
+	@State private var windowBounds: CGRect = UIScreen.main.bounds  // sensible default
+	@State private var fieldFrame: CGRect = .zero
 	var body: some View {
 		let placeholderAlignment: Alignment = textAlignment == .right  ? .trailing
 			: textAlignment == .center ? .center
@@ -71,7 +72,9 @@ struct NumericFieldiOS: View {
 			}
 			NumericUITextField(
 				text: $text,
-				isFocused: $isFocused,
+				isFocused: Binding(get: { isFocused.wrappedValue }, set: { isFocused.wrappedValue = $0  }),
+//				windowBounds: $windowBounds,
+//				fieldFrame: $fieldFrame,
 				font: resolvedFont,
 				style: style,
 				keyboardStyle: keyboardStyle,
@@ -203,6 +206,9 @@ final class NumericUITextFieldView: UITextField {
 struct NumericUITextField: UIViewRepresentable {
 	@Binding var text: String
 	@Binding var isFocused: Bool
+//	@Binding var windowBounds: CGRect
+//	@Binding var fieldFrame: CGRect
+	
 	var font: UIFont
 	var style: NumericStringStyle
 	var keyboardStyle: NumericKeyboardLayout = .automatic
@@ -234,6 +240,10 @@ struct NumericUITextField: UIViewRepresentable {
 		field.onLayout = { [weak field, weak coord] in
 			guard let field, let coord, field.isFirstResponder else { return }
 			coord.cursorView?.reposition(in: field)
+//			if let window = field.window {
+//				coord.parent.windowBounds = window.bounds
+//				coord.parent.fieldFrame = field.convert(field.bounds, to: nil)
+//			}
 		}
 
 		coord.bridge.onChange = { [weak field] newValue in

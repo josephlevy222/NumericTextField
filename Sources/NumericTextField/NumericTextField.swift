@@ -27,7 +27,7 @@ public struct NumericTextField: View {
 					self.title = title
 		self.style = style
 		self.keyboardStyle = keyboardStyle
-		self._isFocused = isFocused.wrappedValue
+		self._isFocused = isFocused
 		self.onEditingChanged = onEditingChanged
 		self.onCommit = onCommit
 		self.onNext = onNext
@@ -39,8 +39,10 @@ public struct NumericTextField: View {
 	public let title: LocalizedStringKey
 	@Binding public var numericText: String
 	public var style: NumericStringStyle = .defaultStyle
-	@FocusState public var isFocused: Bool
-	private var focusBinding: Binding<Bool> { Binding( get: { isFocused}, set: { isFocused = $0})}
+	@Binding public var isFocused: FocusState<Bool>
+	private var focusBinding: Binding<FocusState<Bool>> {
+		Binding( get: { isFocused }, set: { isFocused = $0})
+	}
 	public var onEditingChanged: (Bool) -> Void = { _ in }
 	public var onCommit: () -> Void = { }
 	public var onNext: (() -> Void)? = nil
@@ -110,7 +112,7 @@ public struct NumericTextField: View {
 			text: $numericText,
 			style: style,
 			keyboardStyle: keyboardStyle,
-			isFocused: focusBinding,
+			isFocused: $isFocused,
 			font: _font,
 			textAlignment: _textAlignment,
 			onDone: { value in
@@ -124,7 +126,7 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(style) }
-		.errorOverlay(activeValidationHelpText, isFocused: focusBinding)
+		.errorOverlay(activeValidationHelpText/*, isFocused: focusBinding*/)
 #else
 		TextField(title, text: $numericText,
 				  onEditingChanged: { exited in
