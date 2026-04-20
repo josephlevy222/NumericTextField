@@ -189,10 +189,10 @@ struct ModalOverlayModifier<OverlayContent: View>: ViewModifier {
 ///   - Collects all overlay positions via overlayPreferenceValue.
 ///   - Renders a single dim/block layer and each overlay content
 ///     at the correct window-level position, above all other views.
-struct ModalOverlayRootModifier: ViewModifier {
+public struct ModalOverlayRootModifier: ViewModifier {
 	@State private var registry = ModalOverlayRegistry()
 	
-	func body(content: Content) -> some View {
+	public func body(content: Content) -> some View {
 		content
 			.environment(\.modalOverlayRegistry, registry)
 			.overlayPreferenceValue(ModalPositionKey.self) { prefs in
@@ -283,7 +283,7 @@ extension View {
 	///   - blockHits:           Absorbs taps outside the overlay content. Default `true`.
 	///   - dismissOnTapOutside: Tapping the dim layer sets isVisible to false. Default `true`.
 	///   - content:             The view to display as the overlay.
-	func modalOverlay<Content: View>(
+	public func modalOverlay<Content: View>(
 		isVisible: Binding<Bool>,
 		dimBackground: Bool = true,
 		blockHits: Bool = true,
@@ -304,7 +304,7 @@ extension View {
 	///
 	/// Sheets and fullScreenCovers have separate view hierarchies
 	/// and each need their own `.modalOverlayRoot()`.
-	func modalOverlayRoot() -> some View { modifier(ModalOverlayRootModifier()) }
+	public func modalOverlayRoot() -> some View { modifier(ModalOverlayRootModifier()) }
 }
 
 // MARK: - ErrorBubble
@@ -319,10 +319,10 @@ extension View {
 ///       ) {
 ///           ErrorBubble(message: error ?? "")
 ///       }
-struct ErrorBubble: View {
+public struct ErrorBubble: View {
 	let message: String
 	
-	var body: some View {
+	public var body: some View {
 		Text(message)
 			.font(.caption)
 			.padding(.horizontal, 8)
@@ -334,7 +334,7 @@ struct ErrorBubble: View {
 }
 
 extension View {
-	func errorOverlay(_ message: String?) -> some View {
+	public func errorOverlay(_ message: String?) -> some View {
 		modalOverlay(
 			isVisible: Binding(
 				get: { message != nil },
