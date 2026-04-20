@@ -242,7 +242,7 @@ struct NumericKeyboardView: View {
 		switch key.value {
 		case "": break                          // Ignore blank keys
 		case "done":
-			onDone(text.isEmpty ? "0" : text)   // Finalize
+			onDone(text/*.isEmpty ? "0" : text*/)   // Finalize
 		case "backspace":
 			text = String(text.dropLast())      // Simple deletion
 		default:
@@ -264,5 +264,7 @@ struct NumericKeyboardView: View {
 							style: .defaultStyle, onDone: { _ in })
 	}
 }
-
+#else
+/// Dummy type to allow cross-platform compilation without #if blocks everywhere
+public enum NumericKeyboardLayout { case automatic }
 #endif

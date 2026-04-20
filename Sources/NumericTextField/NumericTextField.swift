@@ -27,7 +27,7 @@ public struct NumericTextField: View {
 					self.title = title
 		self.style = style
 		self.keyboardStyle = keyboardStyle
-		self._isFocused = isFocused
+		self._isFocused = isFocused.wrappedValue
 		self.onEditingChanged = onEditingChanged
 		self.onCommit = onCommit
 		self.onNext = onNext
@@ -39,9 +39,9 @@ public struct NumericTextField: View {
 	public let title: LocalizedStringKey
 	@Binding public var numericText: String
 	public var style: NumericStringStyle = .defaultStyle
-	@Binding public var isFocused: FocusState<Bool>
-	private var focusBinding: Binding<FocusState<Bool>> {
-		Binding( get: { isFocused }, set: { isFocused = $0})
+	@FocusState public var isFocused//: FocusState<Bool>
+	private var bindingIsFocused: Binding<FocusState<Bool>> {
+		Binding( get: {_isFocused}, set: {_isFocused.wrappedValue = $0.wrappedValue })
 	}
 	public var onEditingChanged: (Bool) -> Void = { _ in }
 	public var onCommit: () -> Void = { }
@@ -112,7 +112,7 @@ public struct NumericTextField: View {
 			text: $numericText,
 			style: style,
 			keyboardStyle: keyboardStyle,
-			isFocused: $isFocused,
+			isFocused: bindingIsFocused,
 			font: _font,
 			textAlignment: _textAlignment,
 			onDone: { value in
@@ -126,7 +126,7 @@ public struct NumericTextField: View {
 			}
 		)
 		.onAppear { numericText = reformatter(style) }
-		.errorOverlay(activeValidationHelpText/*, isFocused: focusBinding*/)
+		.errorOverlay(activeValidationHelpText)
 #else
 		TextField(title, text: $numericText,
 				  onEditingChanged: { exited in
@@ -140,7 +140,7 @@ public struct NumericTextField: View {
 		})
 		.numericText(number: $numericText, style: style)
 		.focused($isFocused)
-		.onChange(of: isFocused) { if !isFocused { numericText = reformatter(style) } }
+		.onChange(of: isFocused) {_, focus in if !focus { numericText = reformatter(style) } }
 		.onAppear { numericText = reformatter(style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
