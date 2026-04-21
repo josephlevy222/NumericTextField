@@ -268,16 +268,17 @@ struct NumericUITextField: UIViewRepresentable {
 
 		@objc
 		func textDidChange(_ textField: UITextField) {
-			let cursorOffset: Int
+			let selectionStartOffset: Int
 			if let selectedRange = textField.selectedTextRange {
-				cursorOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+				selectionStartOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
 			} else {
-				cursorOffset = 0
+				selectionStartOffset = 0
 			}
 			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
 			if textField.text != filtered {
 				textField.text = filtered
-				let safeOffset = min(cursorOffset, (filtered as NSString).length)
+				let documentEndOffset = textField.offset(from: textField.beginningOfDocument, to: textField.endOfDocument)
+				let safeOffset = min(selectionStartOffset, documentEndOffset)
 				if let position = textField.position(from: textField.beginningOfDocument, offset: safeOffset) {
 					textField.selectedTextRange = textField.textRange(from: position, to: position)
 				}
