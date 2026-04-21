@@ -135,15 +135,14 @@ final class KeyboardContainerView: UIView {
 }
 
 // MARK: - UITextField subclass (catches layout changes)
+
 final class NumericUITextFieldView: UITextField {
 	var onLayout: (() -> Void)?
-	var onEditAction: ((NumericUITextFieldView) -> Void)?
 	var onPasteString: ((NumericUITextFieldView, String) -> Void)?
 	var onCut: ((NumericUITextFieldView) -> Void)?
 	var onDeleteBackward: ((NumericUITextFieldView) -> Void)?
 	
 	override func paste(_ sender: Any?) {
-		// Do NOT call super.paste; implement selection-aware paste ourselves.
 		guard let s = UIPasteboard.general.string, !s.isEmpty else { return }
 		onPasteString?(self, s)
 	}
@@ -158,26 +157,10 @@ final class NumericUITextFieldView: UITextField {
 		onDeleteBackward?(self)
 	}
 
-	
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		onLayout?()
 	}
-	
-//	override func paste(_ sender: Any?) {
-//		super.paste(sender)
-//		onEditAction?(self)
-//	}
-//	
-//	override func cut(_ sender: Any?) {
-//		super.cut(sender)
-//		onEditAction?(self)
-//	}
-//	
-//	override func deleteBackward() {
-//		super.deleteBackward()
-//		onEditAction?(self)
-//	}
 }
 
 // MARK: - UIViewRepresentable bridge
@@ -211,10 +194,6 @@ struct NumericUITextField: UIViewRepresentable {
 		field.onLayout = { [weak field, weak coord] in
 			guard let field, let coord, field.isFirstResponder else { return }
 			coord.textDidChange(field)
-		}
-		
-		field.onEditAction = { [weak coord] field in
-			coord?.textDidChange(field)
 		}
 		
 		field.onPasteString = { [weak coord] field, pasted in
@@ -299,6 +278,7 @@ struct NumericUITextField: UIViewRepresentable {
 		var parent: NumericUITextField
 		let bridge: NumericTextBridge
 		var hostingController: UIHostingController<KeyboardHost>?
+		private var isApplyingProgrammaticEdit = false
 		
 		init(_ parent: NumericUITextField) {
 			self.parent = parent
@@ -318,12 +298,36 @@ struct NumericUITextField: UIViewRepresentable {
 		
 		@objc
 		func textDidChange(_ textField: UITextField) {
+			guard !isApplyingProgrammaticEdit else { return }
 			syncTextState(textField)
 		}
 		
 		func textField(_ textField: UITextField,
 					   shouldChangeCharactersIn range: NSRange,
-					   replacementString string: String) -> Bool { true }
+					   replacementString string: String) -> Bool {
+			if textField.markedTextRange != nil { return true }
+			
+			let current = textField.text ?? ""
+			guard let replacementRange = Range(range, in: current) else { return true }
+			
+			let candidate = current.replacingCharacters(in: replacementRange, with: string)
+			let filtered = candidate.numericValue(style: parent.style).uppercased()
+			if filtered == candidate { return true }
+			
+			let candidateCaretOffset = range.location + string.utf16.count
+			let candidateNSString = candidate as NSString
+			let safeCandidateCaretOffset = min(max(candidateCaretOffset, 0), candidateNSString.length)
+			let candidatePrefix = candidateNSString.substring(to: safeCandidateCaretOffset)
+			let filteredPrefix = candidatePrefix.numericValue(style: parent.style).uppercased()
+			let desiredCaretOffset = (filteredPrefix as NSString).length
+			
+			isApplyingProgrammaticEdit = true
+			defer { isApplyingProgrammaticEdit = false }
+			textField.text = filtered
+			syncTextState(textField, desiredCaretOffset: desiredCaretOffset)
+			return false
+		}
+
 		
 		private func syncTextState(_ textField: UITextField, desiredCaretOffset: Int? = nil) {
 			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
@@ -370,10 +374,7 @@ struct NumericUITextField: UIViewRepresentable {
 		func replaceSelection(with value: String, in textField: UITextField) {
 			guard let selectedRange = textField.selectedTextRange else { return }
 			let insertionStart = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
-			
-			// This is the key: we *always* replace the current selection.
-			textField.replace(selectedRange, withText: value)
-			
+			textField.replace(selectedRange, withText: value) // This is the key: we *always* replace the current selection.
 			syncTextState(textField, desiredCaretOffset: insertionStart + value.count)
 		}
 	}
