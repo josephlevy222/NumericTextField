@@ -56,8 +56,7 @@ struct NumericFieldiOS: View {
 	private var resolvedFont: UIFont {
 		font ?? .monospacedSystemFont(ofSize: scaledSize, weight: .regular)
 	}
-	@State private var windowBounds: CGRect = UIScreen.main.bounds  // sensible default
-	@State private var fieldFrame: CGRect = .zero
+
 	var body: some View {
 		let placeholderAlignment: Alignment = textAlignment == .right  ? .trailing
 			: textAlignment == .center ? .center
@@ -137,57 +136,6 @@ final class KeyboardContainerView: UIView {
 	}
 }
 
-// MARK: - Blinking cursor overlay
-
-final class BlinkingCursorView: UIView {
-	func startBlinking() {
-		isHidden = false
-		layer.removeAllAnimations()
-		alpha = 1
-		UIView.animate(
-			withDuration: 0.5,
-			delay: 0,
-			options: [.repeat, .autoreverse, .allowUserInteraction],
-			animations: { self.alpha = 0 }
-		)
-	}
-
-	func stopBlinking() {
-		layer.removeAllAnimations()
-		alpha = 0
-		isHidden = true
-	}
-
-	func reposition(in field: UITextField) {
-		guard field.isFirstResponder else { stopBlinking(); return }
-		guard let font = field.font else { return }
-		let text      = field.text ?? ""
-		let fieldWidth  = field.bounds.width
-		let fieldHeight = field.bounds.height
-		guard fieldWidth > 0 else { return }
-
-		let cursorHeight = font.lineHeight * 1.1
-		let cursorY      = (fieldHeight - cursorHeight) / 2
-		let textWidth: CGFloat = text.isEmpty
-			? 0
-			: (text as NSString).size(withAttributes: [.font: font]).width
-
-		let cursorX: CGFloat
-		switch field.textAlignment {
-		case .right:
-			cursorX = text.isEmpty ? fieldWidth : max(0, fieldWidth - textWidth)
-		case .center:
-			let textStart = (fieldWidth - textWidth) / 2
-			cursorX = text.isEmpty ? fieldWidth / 2 : min(textStart + textWidth, fieldWidth)
-		default:
-			cursorX = text.isEmpty ? 0 : min(textWidth, fieldWidth)
-		}
-
-		frame   = CGRect(x: cursorX, y: cursorY, width: 2, height: cursorHeight)
-		isHidden = false
-	}
-}
-
 // MARK: - UITextField subclass (catches layout changes)
 
 final class NumericUITextFieldView: UITextField {
@@ -222,29 +170,20 @@ struct NumericUITextField: UIViewRepresentable {
 		field.font              = font
 		field.textColor         = .label
 		field.textAlignment     = textAlignment
-		field.tintColor         = .clear
+		field.tintColor         = .systemBlue//.clear
 		field.autocorrectionType = .no
 		field.spellCheckingType  = .no
-
-		let cursor = BlinkingCursorView()
-		cursor.backgroundColor = .systemBlue
-		cursor.layer.cornerRadius = 1
-		cursor.alpha = 0
-		field.addSubview(cursor)
-		coord.cursorView = cursor
+		field.addTarget(coord, action: #selector(Coordinator.textDidChange(_:)), for: .editingChanged)
 
 		field.onLayout = { [weak field, weak coord] in
 			guard let field, let coord, field.isFirstResponder else { return }
-			coord.cursorView?.reposition(in: field)
+			coord.textDidChange(field)
 		}
 
 		coord.bridge.onChange = { [weak field] newValue in
 			let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
 			field?.text = filtered
 			coord.parent.text = filtered
-			if let field, field.isFirstResponder {
-				coord.cursorView?.reposition(in: field)
-			}
 		}
 
 		let container = KeyboardContainerView()
@@ -291,13 +230,9 @@ struct NumericUITextField: UIViewRepresentable {
 		if field.text != text {
 			field.text = text
 			coord.bridge.text = text
-			if field.isFirstResponder { coord.cursorView?.reposition(in: field) }
 		}
 		if field.font != font { field.font = font }
-		if field.textAlignment != textAlignment {
-			field.textAlignment = textAlignment
-			if field.isFirstResponder { coord.cursorView?.reposition(in: field) }
-		}
+		if field.textAlignment != textAlignment { field.textAlignment = textAlignment }
 		field.textColor = text.isValid(style: style) ? .label : .systemRed
 		coord.parent = self
 	}
@@ -307,7 +242,6 @@ struct NumericUITextField: UIViewRepresentable {
 	final class Coordinator: NSObject, UITextFieldDelegate {
 		var parent: NumericUITextField
 		let bridge: NumericTextBridge
-		var cursorView: BlinkingCursorView?
 		var hostingController: UIHostingController<KeyboardHost>?
 
 		init(_ parent: NumericUITextField) {
@@ -317,21 +251,40 @@ struct NumericUITextField: UIViewRepresentable {
 
 		func textFieldDidBeginEditing(_ textField: UITextField) {
 			parent.isFocused = true
-			cursorView?.startBlinking()
-			cursorView?.reposition(in: textField)
 			parent.onFocusChange(true)
 		}
 
 		func textFieldDidEndEditing(_ textField: UITextField) {
 			parent.isFocused = false
-			cursorView?.stopBlinking()
 			parent.text = bridge.text
 			parent.onFocusChange(false)
 		}
-
+		
+		@objc
+		func textDidChange(_ textField: UITextField) {
+			let selectionStartOffset: Int
+			if let selectedRange = textField.selectedTextRange {
+				selectionStartOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+			} else {
+				selectionStartOffset = 0
+			}
+			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
+			if textField.text != filtered {
+				textField.text = filtered
+				let documentEndOffset = textField.offset(from: textField.beginningOfDocument, to: textField.endOfDocument)
+				let safeOffset = min(selectionStartOffset, documentEndOffset)
+				if let position = textField.position(from: textField.beginningOfDocument, offset: safeOffset) {
+					textField.selectedTextRange = textField.textRange(from: position, to: position)
+				}
+			}
+			bridge.text = filtered
+			parent.text = filtered
+			textField.textColor = filtered.isValid(style: parent.style) ? .label : .systemRed
+		}
+		
 		func textField(_ textField: UITextField,
 					   shouldChangeCharactersIn range: NSRange,
-					   replacementString string: String) -> Bool { false }
+					   replacementString string: String) -> Bool { true }
 	}
 }
 
