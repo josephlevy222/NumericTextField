@@ -191,9 +191,10 @@ private struct NumericKey: View {
 
 // MARK: - Keyboard view
 struct NumericKeyboardView: View {
-	@Binding var text: String
 	var style: NumericStringStyle = .defaultStyle
-	let onDone: (String) -> Void
+	let onInsert: (String) -> Void
+	let onBackspace: () -> Void
+	let onDone: () -> Void
 	var onHeightChange: ((CGFloat) -> Void)? = nil
 	
 	@Environment(\.horizontalSizeClass) private var hSizeClass
@@ -242,13 +243,11 @@ struct NumericKeyboardView: View {
 		switch key.value {
 		case "": break                          // Ignore blank keys
 		case "done":
-			onDone(text/*.isEmpty ? "0" : text*/)   // Finalize
+			onDone()
 		case "backspace":
-			text = String(text.dropLast())      // Simple deletion
+			onBackspace()
 		default:
-			/// For numbers, decimals, minus, and 'E': Append the new character and let the filter sanitize the result.
-			let candidate = text + key.value
-			text = candidate.numericValue(style: style)
+			onInsert(key.value)
 		}
 	}
 	
@@ -260,8 +259,10 @@ struct NumericKeyboardView: View {
 	VStack(spacing: 0) {
 		Spacer()
 		// Full scientific
-		NumericKeyboardView(text: .constant("3.14E-9"),
-							style: .defaultStyle, onDone: { _ in })
+		NumericKeyboardView(style: .defaultStyle,
+							onInsert: { _ in },
+							onBackspace: { },
+							onDone: { })
 	}
 }
 #else
