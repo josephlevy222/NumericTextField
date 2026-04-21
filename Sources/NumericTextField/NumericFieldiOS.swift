@@ -222,9 +222,10 @@ struct NumericUITextField: UIViewRepresentable {
 		field.font              = font
 		field.textColor         = .label
 		field.textAlignment     = textAlignment
-		field.tintColor         = .clear
+		field.tintColor         = .systemBlue
 		field.autocorrectionType = .no
 		field.spellCheckingType  = .no
+		field.addTarget(coord, action: #selector(Coordinator.textDidChange(_:)), for: .editingChanged)
 
 		let cursor = BlinkingCursorView()
 		cursor.backgroundColor = .systemBlue
@@ -328,10 +329,21 @@ struct NumericUITextField: UIViewRepresentable {
 			parent.text = bridge.text
 			parent.onFocusChange(false)
 		}
+		
+		@objc
+		func textDidChange(_ textField: UITextField) {
+			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
+			if textField.text != filtered {
+				textField.text = filtered
+			}
+			bridge.text = filtered
+			parent.text = filtered
+			textField.textColor = filtered.isValid(style: parent.style) ? .label : .systemRed
+		}
 
 		func textField(_ textField: UITextField,
 					   shouldChangeCharactersIn range: NSRange,
-					   replacementString string: String) -> Bool { false }
+					   replacementString string: String) -> Bool { true }
 	}
 }
 
