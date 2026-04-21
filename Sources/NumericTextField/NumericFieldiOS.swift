@@ -265,11 +265,15 @@ struct NumericUITextField: UIViewRepresentable {
 			parent.text = bridge.text
 			parent.onFocusChange(false)
 		}
-		
+
 		@objc
 		func textDidChange(_ textField: UITextField) {
-			let selectedRange = textField.selectedTextRange
-			let cursorOffset = selectedRange.map { textField.offset(from: textField.beginningOfDocument, to: $0.start) } ?? 0
+			let cursorOffset: Int
+			if let selectedRange = textField.selectedTextRange {
+				cursorOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+			} else {
+				cursorOffset = 0
+			}
 			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
 			if textField.text != filtered {
 				textField.text = filtered
