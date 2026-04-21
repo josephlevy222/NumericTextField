@@ -135,30 +135,49 @@ final class KeyboardContainerView: UIView {
 }
 
 // MARK: - UITextField subclass (catches layout changes)
-
 final class NumericUITextFieldView: UITextField {
 	var onLayout: (() -> Void)?
 	var onEditAction: ((NumericUITextFieldView) -> Void)?
+	var onPasteString: ((NumericUITextFieldView, String) -> Void)?
+	var onCut: ((NumericUITextFieldView) -> Void)?
+	var onDeleteBackward: ((NumericUITextFieldView) -> Void)?
+	
+	override func paste(_ sender: Any?) {
+		// Do NOT call super.paste; implement selection-aware paste ourselves.
+		guard let s = UIPasteboard.general.string, !s.isEmpty else { return }
+		onPasteString?(self, s)
+	}
+	
+	override func cut(_ sender: Any?) {
+		super.cut(sender)
+		onCut?(self)
+	}
+	
+	override func deleteBackward() {
+		super.deleteBackward()
+		onDeleteBackward?(self)
+	}
+
 	
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		onLayout?()
 	}
 	
-	override func paste(_ sender: Any?) {
-		super.paste(sender)
-		onEditAction?(self)
-	}
-	
-	override func cut(_ sender: Any?) {
-		super.cut(sender)
-		onEditAction?(self)
-	}
-	
-	override func deleteBackward() {
-		super.deleteBackward()
-		onEditAction?(self)
-	}
+//	override func paste(_ sender: Any?) {
+//		super.paste(sender)
+//		onEditAction?(self)
+//	}
+//	
+//	override func cut(_ sender: Any?) {
+//		super.cut(sender)
+//		onEditAction?(self)
+//	}
+//	
+//	override func deleteBackward() {
+//		super.deleteBackward()
+//		onEditAction?(self)
+//	}
 }
 
 // MARK: - UIViewRepresentable bridge
@@ -198,6 +217,17 @@ struct NumericUITextField: UIViewRepresentable {
 			coord?.textDidChange(field)
 		}
 		
+		field.onPasteString = { [weak coord] field, pasted in
+			coord?.replaceSelection(with: pasted, in: field)
+		}
+		
+		field.onCut = { [weak coord] field in
+			coord?.textDidChange(field)
+		}
+		
+		field.onDeleteBackward = { [weak coord] field in
+			coord?.textDidChange(field)
+		}
 		coord.bridge.onInsert = { [weak field, weak coord] newValue in
 			guard let field, let coord else { return }
 			coord.insertText(newValue, into: field)
@@ -335,6 +365,16 @@ struct NumericUITextField: UIViewRepresentable {
 			}
 			textField.replace(deleteRange, withText: "")
 			syncTextState(textField, desiredCaretOffset: startOffset - 1)
+		}
+		
+		func replaceSelection(with value: String, in textField: UITextField) {
+			guard let selectedRange = textField.selectedTextRange else { return }
+			let insertionStart = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+			
+			// This is the key: we *always* replace the current selection.
+			textField.replace(selectedRange, withText: value)
+			
+			syncTextState(textField, desiredCaretOffset: insertionStart + value.count)
 		}
 	}
 }
