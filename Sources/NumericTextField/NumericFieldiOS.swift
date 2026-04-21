@@ -95,7 +95,9 @@ final class NumericTextBridge {
 	var text: String
 	var style: NumericStringStyle
 	var keyboardStyle: NumericKeyboardLayout
-	var onChange: (String) -> Void = { _ in }
+	var onInsert: (String) -> Void = { _ in }
+	var onBackspace: () -> Void = { }
+	var onDone: () -> Void = { }
 
 	init(_ initial: String, style: NumericStringStyle, keyboardStyle: NumericKeyboardLayout) {
 		self.text = initial
@@ -108,20 +110,16 @@ final class NumericTextBridge {
 
 struct KeyboardHost: View {
 	var bridge: NumericTextBridge
-	var onDone: (String) -> Void
 	var onHeightChange: ((CGFloat) -> Void)? = nil
 
 	var body: some View {
-		@Bindable var bridge = bridge
 		NumericKeyboardView(
-			text: $bridge.text,
 			style: bridge.style,
-			onDone: onDone,
+			onInsert: bridge.onInsert,
+			onBackspace: bridge.onBackspace,
+			onDone: bridge.onDone,
 			onHeightChange: onHeightChange
 		)
-		.onChange(of: bridge.text) { _, newValue in
-			bridge.onChange(newValue)
-		}
 	}
 }
 
@@ -140,10 +138,26 @@ final class KeyboardContainerView: UIView {
 
 final class NumericUITextFieldView: UITextField {
 	var onLayout: (() -> Void)?
+	var onEditAction: ((NumericUITextFieldView) -> Void)?
 	
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		onLayout?()
+	}
+	
+	override func paste(_ sender: Any?) {
+		super.paste(sender)
+		onEditAction?(self)
+	}
+	
+	override func cut(_ sender: Any?) {
+		super.cut(sender)
+		onEditAction?(self)
+	}
+	
+	override func deleteBackward() {
+		super.deleteBackward()
+		onEditAction?(self)
 	}
 }
 
@@ -180,10 +194,24 @@ struct NumericUITextField: UIViewRepresentable {
 			coord.textDidChange(field)
 		}
 
-		coord.bridge.onChange = { [weak field] newValue in
-			let filtered = newValue.numericValue(style: coord.parent.style).uppercased()
-			field?.text = filtered
-			coord.parent.text = filtered
+		field.onEditAction = { [weak coord] field in
+			coord?.textDidChange(field)
+		}
+
+		coord.bridge.onInsert = { [weak field, weak coord] newValue in
+			guard let field, let coord else { return }
+			coord.insertText(newValue, into: field)
+		}
+
+		coord.bridge.onBackspace = { [weak field, weak coord] in
+			guard let field, let coord else { return }
+			coord.backspace(in: field)
+		}
+
+		coord.bridge.onDone = { [weak field, weak coord] in
+			guard let field, let coord else { return }
+			coord.parent.onDone(coord.bridge.text)
+			field.resignFirstResponder()
 		}
 
 		let container = KeyboardContainerView()
@@ -191,10 +219,6 @@ struct NumericUITextField: UIViewRepresentable {
 
 		let host = UIHostingController(rootView: KeyboardHost(
 			bridge: coord.bridge,
-			onDone: { value in
-				coord.parent.onDone(value)
-				field.resignFirstResponder()
-			},
 			onHeightChange: { [weak container] height in
 				container?.preferredHeight = height
 			}
@@ -234,6 +258,8 @@ struct NumericUITextField: UIViewRepresentable {
 		if field.font != font { field.font = font }
 		if field.textAlignment != textAlignment { field.textAlignment = textAlignment }
 		field.textColor = text.isValid(style: style) ? .label : .systemRed
+		coord.bridge.style = style
+		coord.bridge.keyboardStyle = keyboardStyle
 		coord.parent = self
 	}
 
@@ -262,29 +288,54 @@ struct NumericUITextField: UIViewRepresentable {
 		
 		@objc
 		func textDidChange(_ textField: UITextField) {
-			let selectionStartOffset: Int
-			if let selectedRange = textField.selectedTextRange {
-				selectionStartOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
-			} else {
-				selectionStartOffset = 0
-			}
+			syncTextState(textField)
+		}
+		
+		func textField(_ textField: UITextField,
+					   shouldChangeCharactersIn range: NSRange,
+					   replacementString string: String) -> Bool { true }
+		
+		private func syncTextState(_ textField: UITextField, desiredCaretOffset: Int? = nil) {
 			let filtered = (textField.text ?? "").numericValue(style: parent.style).uppercased()
-			if textField.text != filtered {
-				textField.text = filtered
-				let documentEndOffset = textField.offset(from: textField.beginningOfDocument, to: textField.endOfDocument)
-				let safeOffset = min(selectionStartOffset, documentEndOffset)
-				if let position = textField.position(from: textField.beginningOfDocument, offset: safeOffset) {
-					textField.selectedTextRange = textField.textRange(from: position, to: position)
-				}
+			if textField.text != filtered { textField.text = filtered }
+			let currentOffset = textField.selectedTextRange
+				.map { textField.offset(from: textField.beginningOfDocument, to: $0.start) } ?? 0
+			let endOffset = textField.offset(from: textField.beginningOfDocument, to: textField.endOfDocument)
+			let safeOffset = min(max(desiredCaretOffset ?? currentOffset, 0), endOffset)
+			if let position = textField.position(from: textField.beginningOfDocument, offset: safeOffset) {
+				textField.selectedTextRange = textField.textRange(from: position, to: position)
 			}
 			bridge.text = filtered
 			parent.text = filtered
 			textField.textColor = filtered.isValid(style: parent.style) ? .label : .systemRed
 		}
 		
-		func textField(_ textField: UITextField,
-					   shouldChangeCharactersIn range: NSRange,
-					   replacementString string: String) -> Bool { true }
+		func insertText(_ value: String, into textField: UITextField) {
+			guard let selectedRange = textField.selectedTextRange else { return }
+			// Selection-aware keyboard input: replace selected range or insert at caret.
+			let insertionStart = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+			textField.replace(selectedRange, withText: value)
+			syncTextState(textField, desiredCaretOffset: insertionStart + (value as NSString).length)
+		}
+		
+		func backspace(in textField: UITextField) {
+			guard let selectedRange = textField.selectedTextRange else { return }
+			let startOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
+			let endOffset = textField.offset(from: textField.beginningOfDocument, to: selectedRange.end)
+			if startOffset != endOffset {
+				textField.replace(selectedRange, withText: "")
+				syncTextState(textField, desiredCaretOffset: startOffset)
+				return
+			}
+			guard startOffset > 0,
+				  let previous = textField.position(from: selectedRange.start, offset: -1),
+				  let deleteRange = textField.textRange(from: previous, to: selectedRange.start) else {
+				syncTextState(textField, desiredCaretOffset: startOffset)
+				return
+			}
+			textField.replace(deleteRange, withText: "")
+			syncTextState(textField, desiredCaretOffset: startOffset - 1)
+		}
 	}
 }
 
