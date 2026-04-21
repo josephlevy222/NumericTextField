@@ -315,7 +315,7 @@ struct NumericUITextField: UIViewRepresentable {
 			// Selection-aware keyboard input: replace selected range or insert at caret.
 			let insertionStart = textField.offset(from: textField.beginningOfDocument, to: selectedRange.start)
 			textField.replace(selectedRange, withText: value)
-			syncTextState(textField, desiredCaretOffset: insertionStart + (value as NSString).length)
+			syncTextState(textField, desiredCaretOffset: insertionStart + value.count)
 		}
 		
 		func backspace(in textField: UITextField) {
