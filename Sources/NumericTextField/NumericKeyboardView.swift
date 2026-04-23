@@ -45,14 +45,6 @@ private struct KeyboardPolicy {
 
 // MARK: - Layout builders
 
-// Five meaningful configurations (exponent implies decimal and minus):
-//   1. decimal + negative + exponent  → full scientific (default) with or without negatives
-//   2. decimal + negative             → signed decimal
-//   3. decimal only                   → positive decimal
-//   4. negative only                  → signed integer
-//   5. none                           → positive integer
-
-
 private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 	// Use a helper to decide trailing keys based on the "keyboardCase"
 	let kCase = policy.keyboardCase
@@ -62,20 +54,18 @@ private func makePortraitLayout(policy: KeyboardPolicy) -> [[KeyDef]] {
 	let eKey      = kCase == 1 ? KeyDef(label: "E", value: "E", type: .special) :  blank
 	let done      = KeyDef(label: "Done",value: "done", type: .done, wide: true)
 	
-	let decimal = policy.allowDecimal ? policy.decimalKey : (kCase == 5 ? backspace : nil)
+	let decimal   = policy.allowDecimal ? policy.decimalKey : (kCase == 5 ? backspace : nil)
 	
 	return [
 		[digit("1"), digit("2"), digit("3"), backspace].compactMap { $0 },
 		[digit("4"), digit("5"), digit("6"),      eKey].compactMap { $0 },
 		[digit("7"), digit("8"), digit("9"),     minus].compactMap { $0 },
-		[decimal,    digit("0", wide: true),      done].compactMap { $0 },
+		[decimal   , digit("0", wide: true),      done].compactMap { $0 },
 	]
 }
 
 // Utility to reduce KeyDef boilerplate
-private func digit(_ val: String, wide: Bool = false) -> KeyDef {
-	KeyDef(label: val, value: val, type: .digit, wide: wide)
-}
+private func digit(_ val: String, wide: Bool = false) -> KeyDef { KeyDef(label: val, value: val, type: .digit, wide: wide) }
 
 private func makeCompactHeight(policy: KeyboardPolicy) -> [[KeyDef]] {
 	let topRow: [KeyDef] = [
@@ -182,9 +172,9 @@ private struct NumericKey: View {
 	
 	private var labelFont: Font {
 		switch key.type {
-		case .digit, .special, .blank: return .system(size: 20, weight: .regular, design: .monospaced)
-		case .action:                  return .system(size: 18, weight: .regular)
-		case .done:                    return .system(size: 15, weight: .medium)
+		case .digit, .special, .blank: .system(size: 20, weight: .regular, design: .monospaced)
+		case .action:                  .system(size: 18, weight: .regular)
+		case .done:                    .system(size: 15, weight: .medium)
 		}
 	}
 }
@@ -226,7 +216,6 @@ struct NumericKeyboardView: View {
 					}
 				}
 			}
-			
 			.padding(.horizontal, 6) // Minimized padding to reclaim width
 			.padding(.top, 8)
 			.padding(.bottom, 4) // Reduced bottom space
@@ -250,7 +239,6 @@ struct NumericKeyboardView: View {
 			onInsert(key.value)
 		}
 	}
-	
 }
 
 // MARK: - Preview

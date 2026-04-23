@@ -25,7 +25,7 @@ struct NumericFieldiOS: View {
 	@Binding var text: String
 	var style: NumericStringStyle
 	var keyboardStyle: NumericKeyboardLayout
-	@Binding var isFocused: FocusState<Bool>
+	var isFocused: FocusState<Bool>.Binding
 	var font: UIFont?
 	var textAlignment: NSTextAlignment
 	var onDone: (String) -> Void
@@ -37,7 +37,7 @@ struct NumericFieldiOS: View {
 		 text: Binding<String>,
 		 style: NumericStringStyle = .defaultStyle,
 		 keyboardStyle: NumericKeyboardLayout = .automatic,
-		 isFocused: Binding<FocusState<Bool>> = .constant(FocusState()),
+		 isFocused: FocusState<Bool>.Binding,
 		 font: UIFont? = nil,
 		 textAlignment: NSTextAlignment = .natural,
 		 onDone: @escaping (String) -> Void = { _ in },
@@ -46,7 +46,7 @@ struct NumericFieldiOS: View {
 		self._text = text
 		self.style = style
 		self.keyboardStyle = keyboardStyle
-		self._isFocused = isFocused
+		self.isFocused = isFocused
 		self.font = font
 		self.textAlignment = textAlignment
 		self.onDone = onDone
@@ -59,8 +59,7 @@ struct NumericFieldiOS: View {
 	
 	var body: some View {
 		let placeholderAlignment: Alignment = textAlignment == .right  ? .trailing
-		: textAlignment == .center ? .center
-		: .leading
+		: textAlignment == .center ? .center : .leading
 		ZStack(alignment: placeholderAlignment) {
 			if text.isEmpty {
 				Text(label)
@@ -71,7 +70,7 @@ struct NumericFieldiOS: View {
 			}
 			NumericUITextField(
 				text: $text,
-				isFocused: Binding(get: { isFocused.wrappedValue }, set: { isFocused.wrappedValue = $0  }),
+				isFocused: isFocused,
 				font: resolvedFont,
 				style: style,
 				keyboardStyle: keyboardStyle,
@@ -85,6 +84,7 @@ struct NumericFieldiOS: View {
 			let filtered = newValue.numericValue(style: style)
 			if filtered != newValue { text = filtered }
 		}
+		.focused(isFocused)
 	}
 }
 
@@ -167,7 +167,7 @@ final class NumericUITextFieldView: UITextField {
 
 struct NumericUITextField: UIViewRepresentable {
 	@Binding var text: String
-	@Binding var isFocused: Bool
+	var isFocused: FocusState<Bool>.Binding
 	
 	var font: UIFont
 	var style: NumericStringStyle
@@ -220,7 +220,7 @@ struct NumericUITextField: UIViewRepresentable {
 		coord.bridge.onDone = { [weak field, weak coord] in
 			guard let field, let coord else { return }
 			coord.parent.onDone(coord.bridge.text)
-			field.resignFirstResponder()
+			print("onDone resigning"); field.resignFirstResponder()
 		}
 		
 		let container = KeyboardContainerView()
@@ -270,6 +270,14 @@ struct NumericUITextField: UIViewRepresentable {
 		coord.bridge.style = style
 		coord.bridge.keyboardStyle = keyboardStyle
 		coord.parent = self
+		
+		DispatchQueue.main.async {
+			if isFocused.wrappedValue && !field.isFirstResponder {
+				field.becomeFirstResponder()
+			} else if !isFocused.wrappedValue && field.isFirstResponder {
+				field.resignFirstResponder()
+			}
+		}
 	}
 	
 	// MARK: Coordinator
@@ -286,14 +294,18 @@ struct NumericUITextField: UIViewRepresentable {
 		}
 		
 		func textFieldDidBeginEditing(_ textField: UITextField) {
-			parent.isFocused = true
-			parent.onFocusChange(true)
+			DispatchQueue.main.async {
+				self.parent.isFocused.wrappedValue = true
+				self.parent.onFocusChange(true)
+			}
 		}
 		
 		func textFieldDidEndEditing(_ textField: UITextField) {
-			parent.isFocused = false
+			DispatchQueue.main.async {
+				self.parent.isFocused.wrappedValue = false
+				self.parent.onFocusChange(false)
+			}
 			parent.text = bridge.text
-			parent.onFocusChange(false)
 		}
 		
 		@objc

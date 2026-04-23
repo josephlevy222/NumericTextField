@@ -6,7 +6,7 @@
 
 // NumericTextField.swift
 import SwiftUI
-import Utilities
+//import Utilities
 
 // MARK: - NumericTextField
 
@@ -18,17 +18,17 @@ public struct NumericTextField: View {
 				numericText: Binding<String>,
 				style: NumericStringStyle = .defaultStyle,
 				keyboardStyle: NumericKeyboardLayout = .automatic,
-				isFocused: Binding<FocusState<Bool>> = .constant(FocusState()),
+				isFocused: FocusState<Bool>.Binding? = nil,
 				onEditingChanged: @escaping (Bool) -> Void = { _ in },
 				onCommit: @escaping () -> Void = { },
 				onNext: (() -> Void)? = nil,
 				reformatter:  ( (_ style: NumericStringStyle) -> String)? = nil,
 				validationHelpText: ((_ stringValue: String, _ style: NumericStringStyle) -> String?)? = nil) {
 		self._numericText = numericText
-					self.title = title
+		self.title = title
 		self.style = style
 		self.keyboardStyle = keyboardStyle
-		self._isFocused = isFocused.wrappedValue
+		self.externalFocused = isFocused
 		self.onEditingChanged = onEditingChanged
 		self.onCommit = onCommit
 		self.onNext = onNext
@@ -40,9 +40,10 @@ public struct NumericTextField: View {
 	public let title: LocalizedStringKey
 	@Binding public var numericText: String
 	public var style: NumericStringStyle = .defaultStyle
-	@FocusState public var isFocused//: FocusState<Bool>
-	private var bindingIsFocused: Binding<FocusState<Bool>> {
-		Binding( get: {_isFocused}, set: {_isFocused.wrappedValue = $0.wrappedValue })
+	@FocusState var localFocused
+	public var externalFocused : FocusState<Bool>.Binding?
+	private var isFocused: FocusState<Bool>.Binding {
+		externalFocused ?? $localFocused
 	}
 	public var onEditingChanged: (Bool) -> Void = { _ in }
 	public var onCommit: () -> Void = { }
@@ -106,14 +107,13 @@ public struct NumericTextField: View {
 	// MARK: Body
 
 	public var body: some View {
-		//let validationHelpToShow = activeValidationHelpText
 #if os(iOS) && !targetEnvironment(macCatalyst)
 		NumericFieldiOS(
 			title,
 			text: $numericText,
 			style: style,
 			keyboardStyle: keyboardStyle,
-			isFocused: bindingIsFocused,
+			isFocused: isFocused,
 			font: _font,
 			textAlignment: _textAlignment,
 			onDone: { value in
@@ -140,8 +140,8 @@ public struct NumericTextField: View {
 			onNext?()
 		})
 		.numericText(number: $numericText, style: style)
-		.focused($isFocused)
-		.onChange(of: isFocused) {_, focus in if !focus { numericText = reformatter(style) } }
+		.focused(isFocused)
+		.onChange(of: isFocused.wrappedValue) {_, focus in if !focus { numericText = reformatter(style) } }
 		.onAppear { numericText = reformatter(style) }
 		.if(_font != nil) { _ in font(_font!) }
 		.multilineTextAlignment(_textAlignment.swiftUIAlignment)
